@@ -25,3 +25,11 @@ I tested it with 40 accounts and it took almost a minute to check if there were 
 - twint is a Twitter scraper that currently works but who knows for how long
 - Doesn't work for retweets by users you follow
 - But it shows replies by peiple you follow (is that good or bad?)
+
+## TODOs
+- [ ] Use existing websocket crate instead of spawning websocat process
+- [ ] Find solution better than spawning nostril process
+- [ ] Parallelization, async?
+- [ ] Follow Twitters redirects and send original url to nostr
+- [ ] Add proper logging
+- [ ] Check timestamps that are used for twint's --since option, if the new tweets check takes too long some tweets may get ignored during the next check
