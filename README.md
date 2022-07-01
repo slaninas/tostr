@@ -33,3 +33,4 @@ I tested it with 40 accounts and it took almost a minute to check if there were 
 - [ ] Follow Twitters redirects and send original url to nostr
 - [x] Add proper logging
 - [ ] Check timestamps that are used for twint's --since option, if the new tweets check takes too long some tweets may get ignored during the next check
+- [ ] Error handling for twint
