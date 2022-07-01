@@ -60,7 +60,7 @@ impl std::fmt::Debug for Config {
 
 fn send_tweet(tweet: Tweet, secret: &String, relays: &Vec<String>) {
     let formatted = format!(
-        "[@{}@twitter.com]({}) {}",
+        "[@{}@twitter.com]({}): {}",
         tweet.username, tweet.link, tweet.tweet
     );
 
