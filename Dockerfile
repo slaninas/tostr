@@ -1,4 +1,5 @@
 FROM rust:1.61
+# TODO: Specific commits for used repos, don't just use master HEAD
 
 # Prevent being stuck at timezone selection
 ENV TZ=Europe/London
@@ -27,6 +28,8 @@ RUN git clone https://github.com/vi/websocat.git && \
     cd websocat && \
     cargo install --features=ssl websocat
 
+COPY . /app
+
+# TODO: Add non-root user and use it
 ENV LD_LIBRARY_PATH=/usr/local/lib
-WORKDIR /app
-RUN bash -c 'cd /app'
+RUN bash -c 'cd /app && cargo run --release'
