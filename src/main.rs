@@ -32,6 +32,32 @@ fn main() {
     }
 }
 
+#[derive(Debug)]
+struct Tweet {
+    date: String,
+    username: String,
+    tweet: String,
+    link: String,
+}
+
+struct Config {
+    secret: String,
+    refresh_interval_secs: u64,
+    relays: Vec<String>,
+    follow: Vec<String>,
+}
+
+impl std::fmt::Debug for Config {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
+        fmt.debug_struct("Config")
+            .field("secret", &"***")
+            .field("refresh_interval_secs", &self.refresh_interval_secs)
+            .field("relays", &self.relays)
+            .field("follow", &self.follow)
+            .finish()
+    }
+}
+
 fn send_tweet(tweet: Tweet, secret: &String, relays: &Vec<String>) {
     let formatted = format!(
         "[@{}@twitter.com]({}) {}",
@@ -147,28 +173,3 @@ fn parse_config(path: &std::path::Path) -> Config {
     }
 }
 
-#[derive(Debug)]
-struct Tweet {
-    date: String,
-    username: String,
-    tweet: String,
-    link: String,
-}
-
-struct Config {
-    secret: String,
-    refresh_interval_secs: u64,
-    relays: Vec<String>,
-    follow: Vec<String>,
-}
-
-impl std::fmt::Debug for Config {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        fmt.debug_struct("Config")
-            .field("secret", &"***")
-            .field("refresh_interval_secs", &self.refresh_interval_secs)
-            .field("relays", &self.relays)
-            .field("follow", &self.follow)
-            .finish()
-    }
-}
