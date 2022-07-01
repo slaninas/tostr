@@ -1,0 +1,20 @@
+# Uses value=key syntax
+
+# Private key for the bot goes here
+secret=
+
+# Fow how many seconds to wait after last twitter account was checked
+refresh_interval_secs=60
+
+# Relays that will be used, uncomment more or add your own if you want
+# List of available relays from https://nostr-registry.netlify.app/
+add_relay=wss://nostr-pub.wellorder.net
+# add_relay=wss://nostr-relay.freeberty.net
+# add_relay=wss://nostr.bitcoiner.social
+# add_relay=wss://nostr-relay.wlvs.space
+# add_relay=wss://nostr-relay.untethr.me
+# add_relay=wss://nostr.drss.io
+# add_relay=wss://relay.damus.io
+
+# Add account you want to follow, for example:
+add_follow=the_slaninas
