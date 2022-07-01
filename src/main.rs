@@ -1,9 +1,20 @@
+use log::{info, debug};
+use std::io::Write;
+
 const DATE_FORMAT_STR: &'static str = "%Y-%m-%d %H:%M:%S";
 
 fn main() {
+    let start = std::time::Instant::now();
+    env_logger::Builder::from_default_env()
+        .format(move |buf, rec| {
+            let t = start.elapsed().as_secs_f32();
+            writeln!(buf, "{:.03} [{}] - {}", t, rec.level(), rec.args())
+        })
+        .init();
+
     let config_path = std::path::PathBuf::from("config");
     let config = parse_config(&config_path);
-    println!("{:?}", config);
+    debug!("{:?}", config);
 
     let time: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
 
@@ -15,11 +26,11 @@ fn main() {
     }
 
     loop {
-        println!("Going to sleep for {} s", config.refresh_interval_secs);
+        info!("Going to sleep for {} s", config.refresh_interval_secs);
         std::thread::sleep(std::time::Duration::from_secs(config.refresh_interval_secs));
 
+        info!("Update check for all accounts starting");
         for username in &config.follow {
-            println!("Checking {}", username);
             let new_tweets = get_new_tweets(username, last_update.get(username).unwrap().clone());
 
             last_update.insert(username.clone(), std::time::SystemTime::now().into());
@@ -28,7 +39,7 @@ fn main() {
                 send_tweet(tweet, &config.secret, &config.relays);
             }
         }
-        println!("------------");
+        info!("Update check for all accounts is done");
     }
 }
 
@@ -77,7 +88,7 @@ fn send_tweet(tweet: Tweet, secret: &String, relays: &Vec<String>) {
     let event = String::from_utf8(output.stdout).unwrap();
 
     for relay in relays {
-        println!("Sending >{}< to {}", formatted, relay);
+        debug!("Sending >{}< to {}", event, relay);
 
         let output = std::process::Command::new("bash")
             .arg("-c")
@@ -88,6 +99,7 @@ fn send_tweet(tweet: Tweet, secret: &String, relays: &Vec<String>) {
 }
 
 fn get_new_tweets(username: &String, since: chrono::DateTime<chrono::offset::Local>) -> Vec<Tweet> {
+    debug!("Checking new tweets from {}", username);
     let workfile = "workfile.csv";
 
     let cmd = format!(
@@ -117,7 +129,6 @@ fn get_new_tweets(username: &String, since: chrono::DateTime<chrono::offset::Loc
 
             for i in 1..csv.len() {
                 let line = csv[i].split("\t").collect::<Vec<_>>();
-                println!("{:?}", line);
                 new_tweets.push(Tweet {
                     date: format!("{} {} {}", line[3], line[4], line[5]),
                     username: line[7].to_string(),
@@ -125,9 +136,11 @@ fn get_new_tweets(username: &String, since: chrono::DateTime<chrono::offset::Loc
                     link: line[20].to_string(),
                 });
             }
+
+            debug!("Found {} new tweets from {}", new_tweets.len(), username);
         }
         Err(e) => {
-            println!("No new tweets found");
+            debug!("No new tweets from {} found", username);
         }
     }
 
