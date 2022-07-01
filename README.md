@@ -23,3 +23,5 @@ after you launched it. It waits for `refresh_interval_secs` seconds between the 
 - There are multiple processes spawned for each account check and relaying, twint also takes some time to process so it's slow,
 I tested it with 40 accounts and it took almost a minute to check if there were any new tweets for them.
 - twint is a Twitter scraper that currently works but who knows for how long
+- Doesn't work for retweets by users you follow
+- But it shows replies by peiple you follow (is that good or bad?)
