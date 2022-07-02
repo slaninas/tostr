@@ -3,7 +3,8 @@ use std::io::Write;
 
 const DATE_FORMAT_STR: &'static str = "%Y-%m-%d %H:%M:%S";
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let start = std::time::Instant::now();
     env_logger::Builder::from_default_env()
         .format(move |buf, rec| {
@@ -21,28 +22,20 @@ fn main() {
     let mut last_update =
         std::collections::HashMap::<String, chrono::DateTime<chrono::offset::Local>>::new();
 
-    for username in &config.follow {
-        last_update.insert(username.to_string(), time);
+    let mut handles = vec![];
+
+    for username in config.follow {
+        // last_update.insert(username.to_string(), time);
+        let secret = config.secret.clone();
+        let relays = config.relays.clone();
+        debug!("Spawning update user task for {}", username);
+        handles.push(tokio::spawn(async move {
+            update_user(username, secret, relays, config.refresh_interval_secs).await;
+        }));
     }
 
-    loop {
-        info!("Going to sleep for {} s", config.refresh_interval_secs);
-        std::thread::sleep(std::time::Duration::from_secs(config.refresh_interval_secs));
-
-        info!("Update check for all accounts starting");
-        for username in &config.follow {
-            let new_tweets = get_new_tweets(username, last_update.get(username).unwrap().clone());
-
-            last_update.insert(username.clone(), std::time::SystemTime::now().into());
-
-            // twint returns newest tweets first, reverse the Vec here so that tweets are send to relays
-            // in order they were published. Still the created_at field can easily be the same so in the
-            // end it depends on how the relays handle it
-            for tweet in new_tweets.iter().rev() {
-                send_tweet(tweet, &config.secret, &config.relays);
-            }
-        }
-        info!("Update check for all accounts is done");
+    for handle in handles {
+        tokio::join!(handle);
     }
 }
 
@@ -69,6 +62,30 @@ impl std::fmt::Debug for Config {
             .field("relays", &self.relays)
             .field("follow", &self.follow)
             .finish()
+    }
+}
+
+async fn update_user(
+    username: String,
+    secret: String,
+    relays: Vec<String>,
+    refresh_interval_secs: u64,
+) {
+    let mut since: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
+    loop {
+        debug!("Going to sleep for {} s", refresh_interval_secs);
+        tokio::time::sleep(std::time::Duration::from_secs(refresh_interval_secs)).await;
+
+        let new_tweets = get_new_tweets(&username, since);
+        since = std::time::SystemTime::now().into();
+
+        // twint returns newest tweets first, reverse the Vec here so that tweets are send to relays
+        // in order they were published. Still the created_at field can easily be the same so in the
+        // end it depends on how the relays handle it
+        for tweet in new_tweets.iter().rev() {
+            send_tweet(tweet, &secret, &relays);
+        }
+        // break;
     }
 }
 
@@ -103,7 +120,7 @@ fn send_tweet(tweet: &Tweet, secret: &String, relays: &Vec<String>) {
 
 fn get_new_tweets(username: &String, since: chrono::DateTime<chrono::offset::Local>) -> Vec<Tweet> {
     debug!("Checking new tweets from {}", username);
-    let workfile = "workfile.csv";
+    let workfile = format!("{}_workfile.csv", username);
 
     let cmd = format!(
         "twint -u {} --since \"{}\" --csv -o {}",
@@ -122,7 +139,7 @@ fn get_new_tweets(username: &String, since: chrono::DateTime<chrono::offset::Loc
     let stdout = String::from_utf8(output.stdout).unwrap();
 
     let mut new_tweets = vec![];
-    match std::fs::read_to_string(workfile) {
+    match std::fs::read_to_string(workfile.clone()) {
         Ok(content) => {
             std::fs::remove_file(workfile).unwrap();
 
@@ -140,10 +157,10 @@ fn get_new_tweets(username: &String, since: chrono::DateTime<chrono::offset::Loc
                 });
             }
 
-            debug!("Found {} new tweets from {}", new_tweets.len(), username);
+            info!("Found {} new tweets from {}", new_tweets.len(), username);
         }
-        Err(e) => {
-            debug!("No new tweets from {} found", username);
+        Err(_) => {
+            info!("No new tweets from {} found", username);
         }
     }
 
