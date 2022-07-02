@@ -106,7 +106,7 @@ fn get_new_tweets(username: &String, since: chrono::DateTime<chrono::offset::Loc
     let workfile = "workfile.csv";
 
     let cmd = format!(
-        "twint -u {} --since \"{}\" --csv -o {} --retweets",
+        "twint -u {} --since \"{}\" --csv -o {}",
         username,
         since.format(DATE_FORMAT_STR),
         workfile
