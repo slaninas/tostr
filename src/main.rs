@@ -35,7 +35,10 @@ fn main() {
 
             last_update.insert(username.clone(), std::time::SystemTime::now().into());
 
-            for tweet in new_tweets {
+            // twint returns newest tweets first, reverse the Vec here so that tweets are send to relays
+            // in order they were published. Still the created_at field can easily be the same so in the
+            // end it depends on how the relays handle it
+            for tweet in new_tweets.iter().rev() {
                 send_tweet(tweet, &config.secret, &config.relays);
             }
         }
@@ -69,7 +72,7 @@ impl std::fmt::Debug for Config {
     }
 }
 
-fn send_tweet(tweet: Tweet, secret: &String, relays: &Vec<String>) {
+fn send_tweet(tweet: &Tweet, secret: &String, relays: &Vec<String>) {
     let formatted = format!(
         "[@{}@twitter.com]({}): {}",
         tweet.username, tweet.link, tweet.tweet
