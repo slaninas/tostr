@@ -98,7 +98,7 @@ fn send_tweet(tweet: &Tweet, secret: &String, relays: &Vec<String>) {
     let output = std::process::Command::new("bash")
         .arg("-c")
         .arg(format!(
-            "/nostril/nostril --envelope --sec {} --content \"{}\"",
+            "/nostril/nostril --envelope --sec {} --content \'{}\'",
             secret, formatted
         ))
         .stdout(std::process::Stdio::piped())
