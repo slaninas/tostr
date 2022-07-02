@@ -1,4 +1,4 @@
-use log::{info, debug};
+use log::{debug, info};
 use std::io::Write;
 
 const DATE_FORMAT_STR: &'static str = "%Y-%m-%d %H:%M:%S";
@@ -111,7 +111,7 @@ fn get_new_tweets(username: &String, since: chrono::DateTime<chrono::offset::Loc
         since.format(DATE_FORMAT_STR),
         workfile
     );
-    // println!("cmd >{}<", cmd);
+    debug!("Running >{}<", cmd);
     let mut output = std::process::Command::new("bash")
         .arg("-c")
         .arg(cmd)
