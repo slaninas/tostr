@@ -1,10 +1,25 @@
 use log::{debug, info};
 use std::io::Write;
 
+mod nostril;
+
+
 const DATE_FORMAT_STR: &'static str = "%Y-%m-%d %H:%M:%S";
+
+
 
 #[tokio::main]
 async fn main() {
+
+    let nostril::KeyPair{secret, public} = nostril::generate_keypair();
+
+    println!("secret_key {}", nostril::key_to_hex(&secret));
+    println!("public_key {}", nostril::key_to_hex(&public));
+
+    nostril::create_event("Testing content for nostril in Rust.".to_string(), public, secret);
+
+    return;
+
     let start = std::time::Instant::now();
     env_logger::Builder::from_default_env()
         .format(move |buf, rec| {
@@ -73,8 +88,8 @@ async fn update_user(
 ) {
     let mut since: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
     loop {
-        debug!("Going to sleep for {} s", refresh_interval_secs);
-        tokio::time::sleep(std::time::Duration::from_secs(refresh_interval_secs)).await;
+        // debug!("Going to sleep for {} s", refresh_interval_secs);
+        // tokio::time::sleep(std::time::Duration::from_secs(refresh_interval_secs)).await;
 
         let new_tweets = get_new_tweets(&username, since);
         since = std::time::SystemTime::now().into();
@@ -95,6 +110,7 @@ fn send_tweet(tweet: &Tweet, secret: &String, relays: &Vec<String>) {
         tweet.username, tweet.link, tweet.tweet
     );
 
+    debug!("Content >{}<", formatted);
     let output = std::process::Command::new("bash")
         .arg("-c")
         .arg(format!(
