@@ -83,38 +83,26 @@ async fn update_user(
         // in order they were published. Still the created_at field can easily be the same so in the
         // end it depends on how the relays handle it
         for tweet in new_tweets.iter().rev() {
-            send_tweet(tweet, &secret, &relays);
+            send_tweet(tweet, &secret, &relays).await;
         }
         // break;
     }
 }
 
-fn send_tweet(tweet: &Tweet, secret: &String, relays: &Vec<String>) {
+async fn send_tweet(tweet: &Tweet, secret: &String, relays: &Vec<String>) {
     let formatted = format!(
         "[@{}@twitter.com]({}): {}",
         tweet.username, tweet.link, tweet.tweet
     );
 
-    let output = std::process::Command::new("bash")
-        .arg("-c")
-        .arg(format!(
-            "/nostril/nostril --envelope --sec {} --content \'{}\'",
-            secret, formatted
-        ))
-        .stdout(std::process::Stdio::piped())
-        .output()
-        .unwrap();
+    let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let event = tostr::Event::new(secret.clone(), formatted, timestamp);
 
-    let event = String::from_utf8(output.stdout).unwrap();
+    debug!("new event: {}", event.format());
 
     for relay in relays {
-        debug!("Sending >{}< to {}", event, relay);
-
-        let output = std::process::Command::new("bash")
-            .arg("-c")
-            .arg(format!("echo '{}' | websocat {}", event, relay))
-            .output()
-            .unwrap();
+        debug!("Sending >{}< to {}", event.format(), relay);
+        event.send(relay).await;
     }
 }
 

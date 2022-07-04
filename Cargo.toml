@@ -8,5 +8,10 @@ edition = "2021"
 [dependencies]
 chrono = "0.4.19"
 env_logger = "0.9.0"
+futures-util = "0.3.21"
 log = "0.4.17"
+secp256k1 = {version = "0.23.3", features = ["rand", "rand-std", "bitcoin_hashes"]}
 tokio = {version = "1.19.2", features = ["macros", "rt-multi-thread", "time"]}
+tokio-tungstenite = "0.17.1"
+tungstenite = "0.17.2"
+url = "2.2.2"

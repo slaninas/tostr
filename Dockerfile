@@ -13,21 +13,6 @@ RUN git clone --depth=1 https://github.com/minamotorin/twint.git && \
     cd twint && \
     pip3 install . -r requirements.txt
 
-# Build nostril
-RUN git clone https://github.com/bitcoin-core/secp256k1 && \
-    cd secp256k1 && \
-    ./autogen.sh && \
-    ./configure --enable-module-ecdh --enable-module-schnorrsig && \
-    make install
-RUN git clone https://github.com/jb55/nostril && \
-    cd nostril && \
-    make
-
-# Build websocat
-RUN git clone https://github.com/vi/websocat.git && \
-    cd websocat && \
-    cargo install --features=ssl websocat
-
 COPY . /app
 
 # TODO: Add non-root user and use it
