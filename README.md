@@ -6,8 +6,8 @@ Bot that forwards tweets to [nostr](https://github.com/nostr-protocol/nostr).
 
 
 ## How it works
-It uses [twint](https://github.com/minamotorin/twint.git) to get the tweets,
-[nostril](https://github.com/jb55/nostril) to create a nostr event and [websocat](https://github.com/vi/websocat.git) to send the event to relays.
+It uses [twint](https://github.com/minamotorin/twint.git) to get the tweets, making nostr events from them which are signed using
+[secp256k1](https://crates.io/crates/secp256k1) and send to relays using [tokio_tungstenite](https://crates.io/crates/tokio-tungstenite).
 
 ## How to run
 ```
