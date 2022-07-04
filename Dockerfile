@@ -16,5 +16,5 @@ RUN git clone --depth=1 https://github.com/minamotorin/twint.git && \
 COPY . /app
 
 # TODO: Add non-root user and use it
-ENV LD_LIBRARY_PATH=/usr/local/lib
+ENV RUST_LOG=info
 RUN bash -c 'cd /app && cargo run --release'
