@@ -76,7 +76,7 @@ async fn update_user(
         debug!("Going to sleep for {} s", refresh_interval_secs);
         tokio::time::sleep(std::time::Duration::from_secs(refresh_interval_secs)).await;
 
-        let new_tweets = get_new_tweets(&username, since);
+        let new_tweets = get_new_tweets(&username, since).await;
         since = std::time::SystemTime::now().into();
 
         // twint returns newest tweets first, reverse the Vec here so that tweets are send to relays
@@ -106,7 +106,7 @@ async fn send_tweet(tweet: &Tweet, secret: &String, relays: &Vec<String>) {
     }
 }
 
-fn get_new_tweets(username: &String, since: chrono::DateTime<chrono::offset::Local>) -> Vec<Tweet> {
+async fn get_new_tweets(username: &String, since: chrono::DateTime<chrono::offset::Local>) -> Vec<Tweet> {
     debug!("Checking new tweets from {}", username);
     let workfile = format!("{}_workfile.csv", username);
 
@@ -117,14 +117,12 @@ fn get_new_tweets(username: &String, since: chrono::DateTime<chrono::offset::Loc
         workfile
     );
     debug!("Running >{}<", cmd);
-    let mut output = std::process::Command::new("bash")
+    let mut output = async_process::Command::new("bash")
         .arg("-c")
         .arg(cmd)
-        .stdout(std::process::Stdio::piped())
-        .output()
+        .status().await
         .unwrap();
 
-    let stdout = String::from_utf8(output.stdout).unwrap();
 
     let mut new_tweets = vec![];
     match std::fs::read_to_string(workfile.clone()) {
