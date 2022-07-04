@@ -31,7 +31,7 @@ RUN git clone https://github.com/bitcoin-core/secp256k1 && \
 	 # echo 'int test();' >> nostril.h
 	 # make libnostril.so
 
-COPY . /app
+WORKDIR /app
 
 # TODO: Add non-root user and use it
 ENV LD_LIBRARY_PATH=/usr/local/lib:/nostril/

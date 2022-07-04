@@ -11,12 +11,13 @@ const DATE_FORMAT_STR: &'static str = "%Y-%m-%d %H:%M:%S";
 #[tokio::main]
 async fn main() {
 
-    let nostril::KeyPair{secret, public} = nostril::generate_keypair();
+    nostril::call_main();
+    // let nostril::KeyPair{secret, public} = nostril::generate_keypair();
 
-    println!("secret_key {}", nostril::key_to_hex(&secret));
-    println!("public_key {}", nostril::key_to_hex(&public));
+    // println!("secret_key {}", nostril::key_to_hex(&secret));
+    // println!("public_key {}", nostril::key_to_hex(&public));
 
-    nostril::create_event("Testing content for nostril in Rust.".to_string(), public, secret);
+    // nostril::create_event("Testing content for nostril in Rust.".to_string(), public, secret);
 
     return;
 

@@ -57,3 +57,10 @@ void nostril_create_event(unsigned char * pubkey, unsigned char * secret, char *
 	}
 
 }
+
+/* int fake_main(int argc, const char *argv[]) { */
+	/* for (int i = 0; i < argc; ++i) { */
+		/* printf("%d >%s<\n", i, argv[i]); */
+	/* } */
+
+/* } */

@@ -16,6 +16,10 @@ fn main() {
         .arg("-c")
         .arg(r"grep 'fPIC' /nostril/Makefile || sed -i 's/\(^CFLAGS.*\)/\1 -fPIC/' /nostril/Makefile").status().unwrap();
 
+    std::process::Command::new("bash")
+        .arg("-c")
+        .arg(r"grep 'int main' /nostril/nostril.c && sed -i 's/main/fake_main/' /nostril/nostril.c").status().unwrap();
+
     // Add libnostril.so target
     std::process::Command::new("bash")
         .arg("-c")

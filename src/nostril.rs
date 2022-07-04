@@ -55,6 +55,17 @@ pub fn create_event(content: String, mut pubkey: Vec<u8>, mut secret: Vec<u8>) {
 
 }
 
+pub fn call_main() {
+    let x = 3;
+    let mut c0 = String::from("nostril");
+    let mut c = String::from("--content");
+    let mut c2 = String::from("blah");
+    let mut carray: [*const std::os::raw::c_char; 3] = [c0.as_ptr() as _, c.as_ptr() as  _, c2.as_ptr() as _];
+    unsafe {
+        fake_main(x, carray.as_mut_ptr());
+    }
+}
+
 fn get_hex_digit(c: u8) -> char {
     match c {
         0 => '0',
