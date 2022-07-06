@@ -1,5 +1,5 @@
-use secp256k1::{rand, KeyPair, Secp256k1};
 use futures_util::sink::SinkExt;
+use secp256k1::{rand, KeyPair, Secp256k1};
 
 // TODO: Add remaining fields
 pub struct Event {
@@ -36,7 +36,7 @@ impl Event {
         }
     }
 
-    pub fn format(&self) -> String{
+    pub fn format(&self) -> String {
         format!(
             r#"["EVENT",{{"id": "{}", "pubkey": "{}", "created_at": {}, "kind": {}, "tags": [], "content": "{}", "sig": "{}"}}]"#,
             self.id, self.pubkey, self.created_at, self.kind, self.content, self.sig
@@ -49,12 +49,15 @@ impl Event {
     pub async fn send(&self, address: &String) {
         // TODO: Keep the connection alive
         let (mut ws_stream, response) =
-            tokio_tungstenite::connect_async(url::Url::parse(address).unwrap()).await
+            tokio_tungstenite::connect_async(url::Url::parse(address).unwrap())
+                .await
                 .expect("Can't connect");
 
-        ws_stream.send(tungstenite::Message::Text(self.format().into())).await.unwrap();
+        ws_stream
+            .send(tungstenite::Message::Text(self.format().into()))
+            .await
+            .unwrap();
         ws_stream.close(None).await.unwrap();
-
     }
 }
 
