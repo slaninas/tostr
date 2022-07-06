@@ -1,7 +1,6 @@
 use log::{debug, info};
 use std::io::Write;
 
-const DATE_FORMAT_STR: &'static str = "%Y-%m-%d %H:%M:%S";
 
 #[tokio::main]
 async fn main() {
@@ -13,19 +12,19 @@ async fn main() {
         })
         .init();
 
+
+    info!("Starting bot");
+    // let handle = tostr::test_client().await;
+    // return;
+
+
     let config_path = std::path::PathBuf::from("config");
     let config = tostr::parse_config(&config_path);
     debug!("{:?}", config);
 
-    let time: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
-
-    let mut last_update =
-        std::collections::HashMap::<String, chrono::DateTime<chrono::offset::Local>>::new();
-
     let mut handles = vec![];
 
     for username in config.follow {
-        // last_update.insert(username.to_string(), time);
         let secret = config.secret.clone();
         let relays = config.relays.clone();
         debug!("Spawning update user task for {}", username);
@@ -35,6 +34,7 @@ async fn main() {
     }
 
     for handle in handles {
-        tokio::join!(handle);
+        let result = tokio::join!(handle);
+        result.0.unwrap();
     }
 }

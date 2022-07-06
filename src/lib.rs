@@ -1,10 +1,9 @@
-use futures_util::sink::SinkExt;
-use futures_util::StreamExt;
-use secp256k1::{rand, KeyPair, Secp256k1};
-
 use log::{debug, info};
 
 pub mod nostr;
+pub mod websocket;
+
+const DATE_FORMAT_STR: &'static str = "%Y-%m-%d %H:%M:%S";
 
 pub struct Config {
     pub secret: String,
@@ -78,7 +77,7 @@ pub async fn update_user(
 
 #[derive(Debug)]
 struct Tweet {
-    date: String,
+    // date: String,
     username: String,
     tweet: String,
     link: String,
@@ -122,16 +121,16 @@ async fn get_new_tweets(
     debug!("Checking new tweets from {}", username);
     let workfile = format!("{}_workfile.csv", username);
 
-    let since = "2022-07-03 20:39:17";
+    // let since = "2022-07-03 20:39:17";
     let cmd = format!(
         "twint -u {} --since \"{}\" --csv -o {}",
         username,
-        // since.format(DATE_FORMAT_STR),
-        since,
+        since.format(DATE_FORMAT_STR),
         workfile
     );
     debug!("Running >{}<", cmd);
-    let mut output = async_process::Command::new("bash")
+    // TODO: Handle status
+    let _output = async_process::Command::new("bash")
         .arg("-c")
         .arg(cmd)
         .status()
@@ -143,14 +142,12 @@ async fn get_new_tweets(
         Ok(content) => {
             std::fs::remove_file(workfile).unwrap();
 
-            let mut csv = content.lines().collect::<Vec<_>>();
-
-            let header = csv[0].split("\t").collect::<Vec<_>>();
+            let csv = content.lines().collect::<Vec<_>>();
 
             for i in 1..csv.len() {
                 let line = csv[i].split("\t").collect::<Vec<_>>();
                 new_tweets.push(Tweet {
-                    date: format!("{} {} {}", line[3], line[4], line[5]),
+                    // date: format!("{} {} {}", line[3], line[4], line[5]),
                     username: line[7].to_string(),
                     tweet: line[10].to_string(),
                     link: line[20].to_string(),
