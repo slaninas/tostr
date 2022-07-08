@@ -1,3 +1,5 @@
+use futures_util::sink::SinkExt;
+use futures_util::StreamExt;
 use log::{debug, info};
 use std::io::Write;
 
@@ -18,7 +20,6 @@ async fn main() {
     info!("Starting bot");
     let db = tostr::SimpleDatabase::from_file("blah".to_string());
     let db = std::sync::Arc::new(std::sync::Mutex::new(db));
-    tostr::start_existing(db.clone(), &config, config.relays[0].clone());
 
     let relay = &config.relays[0];
     info!("Connecting to {}", relay);
@@ -27,6 +28,20 @@ async fn main() {
         .await
         .expect("Can't connect");
 
-    let mut bot = tostr::Bot::new(db, config, ws_stream);
-    bot.run().await;
+    let (sink, stream) = ws_stream.split();
+
+    let secp = secp256k1::Secp256k1::new();
+    let keypair = secp256k1::KeyPair::from_seckey_str(&secp, &config.secret).unwrap();
+
+    tostr::run(
+        keypair,
+        tostr::Sink {
+            sink: std::sync::Arc::new(std::sync::Mutex::new(sink)),
+            peer_addr: relay.clone(),
+        },
+        stream,
+        db,
+        config,
+    )
+    .await;
 }

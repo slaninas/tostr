@@ -22,116 +22,92 @@ type Stream = futures_util::stream::SplitStream<
 type WrappedSink = std::sync::Arc<std::sync::Mutex<SplitSink>>;
 
 #[derive(Clone)]
-struct Sink {
-    sink: WrappedSink,
-    peer_addr: String,
+pub struct Sink {
+    pub sink: WrappedSink,
+    pub peer_addr: String,
 }
 
-pub struct Bot {
-    db: Database,
-    config: crate::Config,
-    sink: Sink,
-    stream: Option<Stream>,
+pub async fn run(
     keypair: secp256k1::KeyPair,
-}
+    sink: Sink,
+    stream: Stream,
+    db: Database,
+    config: Config,
+) {
+    let welcome = crate::nostr::Event::new(
+        &keypair,
+        "Hi, I'm tostr, reply with command 'add @twitter_account'".to_string(),
+        unix_timestamp(),
+        vec![],
+    );
 
-impl Bot {
-    pub fn new(db: Database, config: crate::Config, ws_stream: WebSocketStream) -> Self {
-        let peer_addr = match ws_stream.get_ref() {
-            tokio_tungstenite::MaybeTlsStream::Plain(s) => s,
-            // tokio_tungstenite::MaybeTlsStream::NativeTls(s) => s.get_ref(),
-            _ => panic!("Using non-plain"),
-        }
-        .peer_addr()
-        .unwrap()
-        .to_string();
+    send(welcome.format(), sink.clone()).await;
 
-        let (sink, stream) = ws_stream.split();
-
-        let secp = secp256k1::Secp256k1::new();
-        let keypair = secp256k1::KeyPair::from_seckey_str(&secp, &config.secret).unwrap();
-
-        println!("{:?}", stream);
-        Bot {
-            db,
-            config,
-            sink: Sink {
-                sink: std::sync::Arc::new(std::sync::Mutex::new(sink)),
-                peer_addr,
-            },
-            stream: Some(stream),
-            keypair,
-        }
-    }
-
-    pub async fn run(&mut self) {
-        let welcome = crate::nostr::Event::new(
-            &self.keypair,
-            "Hi, I'm tostr, reply with command 'add @twitter_account'".to_string(),
+    // Listen for my pubkey mentions
+    send(
+        format!(
+            r##"["REQ", "{}", {{"#p": ["{}"], "since": {}}} ]"##,
+            "dsfasdfdafadf",
+            keypair.x_only_public_key().0,
             unix_timestamp(),
-            vec![],
-        );
+        ),
+        sink.clone(),
+    )
+    .await;
 
-        send(welcome.format(), self.sink.clone()).await;
+    start_existing(db.clone(), &config, sink.clone());
 
-        // Listen for my pubkey mentions
-        send(
-            format!(
-                r##"["REQ", "{}", {{"#p": ["{}"], "since": {}}} ]"##,
-                "dsfasdfdafadf",
-                self.keypair.x_only_public_key().0,
-                unix_timestamp(),
-            ),
-            self.sink.clone(),
-        )
-        .await;
+    let f = stream.for_each(|message| async {
+        let data = message.unwrap();
 
-        let stream = match self.stream.take() {
-            Some(s) => s,
-            None => panic!("Can't get the stream"),
-        };
+        let data_str = data.to_string();
+        debug!("Got message >{}<", data_str);
 
-        let f = stream.for_each(|message| async {
-            let data = message.unwrap();
-
-            let data_str = data.to_string();
-            debug!("Got message >{}<", data_str);
-
-            match serde_json::from_str::<crate::nostr::Message>(&data.to_string()) {
-                Ok(message) => {
-                    let event = message.content;
-                    if event.content.starts_with("add @") {
-                        let response = handle_add(
-                            self.config.secret.clone(),
-                            self.db.clone(),
-                            event,
-                            self.sink.clone(),
-                        )
-                        .await;
-                        send(response.sign(&self.keypair).format(), self.sink.clone()).await;
-                    } else {
-                        debug!("Unknown command \"{}\", ignoring", event.content);
-                    }
-                }
-                Err(e) => {
-                    debug!("Unable to parse message: {}", e);
+        match serde_json::from_str::<crate::nostr::Message>(&data.to_string()) {
+            Ok(message) => {
+                match handle_command(
+                    message.content,
+                    db.clone(),
+                    sink.clone(),
+                    config.refresh_interval_secs,
+                )
+                .await
+                {
+                    Ok(response) => send(response.sign(&keypair).format(), sink.clone()).await,
+                    Err(e) => debug!("{}", e),
                 }
             }
-        });
+            Err(e) => {
+                debug!("Unable to parse message: {}", e);
+            }
+        }
+    });
 
-        f.await;
-    }
+    f.await;
 }
 
 struct AddHandler {
     main_bot_pubkey: String,
 }
 
+async fn handle_command(
+    event: nostr::Event,
+    db: Database,
+    sink: Sink,
+    refresh_interval_secs: u64,
+) -> Result<nostr::EventNonSigned, String> {
+    let response = match event.content.get(..5) {
+        Some("add @") => Ok(handle_add(db, event, sink, refresh_interval_secs).await),
+        _ => Err(format!("Unknown command >{}<", event.content)),
+    };
+    response
+}
+
 async fn handle_add(
-    main_bot_secret: String,
     db: Database,
     event: nostr::Event,
     sink: Sink,
+    refresh_interval_secs: u64,
 ) -> nostr::EventNonSigned {
     let username = event.content[5..event.content.len()].to_string();
 
@@ -142,7 +118,7 @@ async fn handle_add(
             "User @{} already added before. Sending existing pubkey {}",
             username, pubkey
         );
-        return get_handle_response(main_bot_secret.clone(), event, &pubkey.to_string(), sink);
+        return get_handle_response(event, &pubkey.to_string(), sink.clone());
     }
     let keypair = get_random_keypair();
 
@@ -158,30 +134,17 @@ async fn handle_add(
         username, xonly_pubkey
     );
 
-    tokio::spawn(async move {
-        // fake_worker(username, 60).await;
-        crate::update_user(
-            username,
-            &keypair,
-            // TODO: Use exisitng sink
-            // sink.clone(),
-            vec!["ws://relay:8080".to_string()],
-            // TODO: use value from config
-            60,
-        )
-        .await;
-    });
+    {
+        let sink = sink.clone();
+        tokio::spawn(async move {
+            crate::update_user(username, &keypair, sink, refresh_interval_secs).await;
+        });
+    }
 
-    get_handle_response(
-        main_bot_secret.clone(),
-        event,
-        &xonly_pubkey.to_string(),
-        sink,
-    )
+    get_handle_response(event, &xonly_pubkey.to_string(), sink)
 }
 
 fn get_handle_response(
-    main_bot_key: String,
     event: crate::nostr::Event,
     new_bot_pubkey: &str,
     sink: Sink,
@@ -211,17 +174,18 @@ async fn send(msg: String, sink: Sink) {
 pub fn start_existing(
     db: std::sync::Arc<std::sync::Mutex<crate::SimpleDatabase>>,
     config: &crate::Config,
-    relay: String,
+    sink: Sink,
 ) {
     for (username, keypair) in db.lock().unwrap().get_follows() {
-        let relay = relay.clone();
-        let refresh = config.refresh_interval_secs.clone();
-
         info!("Starting worker for username {}", username);
-        tokio::spawn(async move {
-            // fake_worker(username, 10).await;
-            crate::update_user(username, &keypair, vec![relay], refresh).await;
-        });
+
+        {
+            let refresh = config.refresh_interval_secs.clone();
+            let sink = sink.clone();
+            tokio::spawn(async move {
+                crate::update_user(username, &keypair, sink, refresh).await;
+            });
+        }
     }
 }
 
@@ -279,10 +243,12 @@ pub fn parse_config(path: &std::path::Path) -> Config {
 pub async fn update_user(
     username: String,
     keypair: &secp256k1::KeyPair,
-    relays: Vec<String>,
+    sink: Sink,
     refresh_interval_secs: u64,
 ) {
     let mut since: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
+    fake_worker(username, refresh_interval_secs).await;
+    return;
     loop {
         debug!(
             "Worker for @{} is going to sleep for {} s",
@@ -297,7 +263,7 @@ pub async fn update_user(
         // in order they were published. Still the created_at field can easily be the same so in the
         // end it depends on how the relays handle it
         for tweet in new_tweets.iter().rev() {
-            send_tweet(tweet, keypair, &relays).await;
+            send(get_tweet_event(tweet).sign(&keypair).format(), sink);
         }
         // break;
     }
@@ -321,23 +287,17 @@ impl std::fmt::Debug for Config {
     }
 }
 
-async fn send_tweet(tweet: &Tweet, keypair: &secp256k1::KeyPair, relays: &Vec<String>) {
+fn get_tweet_event(tweet: &Tweet) -> nostr::EventNonSigned {
     let formatted = format!(
         "[@{}@twitter.com]({}): {}",
         tweet.username, tweet.link, tweet.tweet
     );
 
-    let timestamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    let event = nostr::Event::new(&keypair, formatted, timestamp, vec![]);
-
-    debug!("new event: {}", event.format());
-
-    for relay in relays {
-        debug!("Sending >{}< to {}", event.format(), relay);
-        event.send(relay).await;
+    nostr::EventNonSigned {
+        created_at: unix_timestamp(),
+        kind: 1,
+        tags: vec![],
+        content: formatted,
     }
 }
 
