@@ -1,7 +1,6 @@
 use log::{debug, info};
 use std::io::Write;
 
-
 #[tokio::main]
 async fn main() {
     let start = std::time::Instant::now();
@@ -12,29 +11,22 @@ async fn main() {
         })
         .init();
 
-
-    info!("Starting bot");
-    // let handle = tostr::test_client().await;
-    // return;
-
-
     let config_path = std::path::PathBuf::from("config");
     let config = tostr::parse_config(&config_path);
     debug!("{:?}", config);
 
-    let mut handles = vec![];
+    info!("Starting bot");
+    let db = tostr::SimpleDatabase::from_file("blah".to_string());
+    let db = std::sync::Arc::new(std::sync::Mutex::new(db));
+    tostr::start_existing(db.clone(), &config, config.relays[0].clone());
 
-    for username in config.follow {
-        let secret = config.secret.clone();
-        let relays = config.relays.clone();
-        debug!("Spawning update user task for {}", username);
-        handles.push(tokio::spawn(async move {
-            tostr::update_user(username, secret, relays, config.refresh_interval_secs).await;
-        }));
-    }
+    let relay = &config.relays[0];
+    info!("Connecting to {}", relay);
+    // TODO: Enable Tls
+    let (ws_stream, _response) = tokio_tungstenite::connect_async(url::Url::parse(relay).unwrap())
+        .await
+        .expect("Can't connect");
 
-    for handle in handles {
-        let result = tokio::join!(handle);
-        result.0.unwrap();
-    }
+    let mut bot = tostr::Bot::new(db, config, ws_stream);
+    bot.run().await;
 }

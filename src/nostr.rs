@@ -1,28 +1,63 @@
 use futures_util::sink::SinkExt;
 use secp256k1::Secp256k1;
 
-// TODO: Add remaining fields
+use log::debug;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+pub struct Message {
+    pub msg_type: String,
+    pub subscription_id: String,
+    pub content: Event,
+}
+
+pub struct EventNonSigned {
+    pub created_at: u64,
+    pub kind: u64,
+    pub tags: Vec<Vec<String>>,
+    pub content: String,
+}
+
+impl EventNonSigned {
+    pub fn sign(mut self, keypair: &secp256k1::KeyPair) -> Event {
+        Event::new(keypair, self.content, self.created_at, self.tags)
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct Event {
-    id: String,
-    pubkey: String,
-    created_at: u64,
-    kind: u64,
-    content: String,
-    sig: String,
+    pub id: String,
+    pub pubkey: String,
+    pub created_at: u64,
+    pub kind: u64,
+    pub tags: Vec<Vec<String>>,
+    pub content: String,
+    pub sig: String,
 }
 
 impl Event {
-    pub fn new(secret: String, content: String, created_at: u64) -> Self {
+    pub fn new(
+        keypair: &secp256k1::KeyPair,
+        content: String,
+        created_at: u64,
+        tags: Vec<Vec<String>>,
+    ) -> Self {
         let secp = Secp256k1::new();
 
-        let key_pair = secp256k1::KeyPair::from_seckey_str(&secp, &secret).unwrap();
-        let (pubkey, _parity) = key_pair.x_only_public_key();
+        let (pubkey, _parity) = keypair.x_only_public_key();
 
-        let msg = format!(r#"[0,"{}",{},1,[],"{}"]"#, pubkey, created_at, content);
+        let mut formatted_tags = Self::format_tags(&tags);
+        formatted_tags.retain(|c| !c.is_whitespace());
+
+        let msg = format!(
+            r#"[0,"{}",{},1,[{}],"{}"]"#,
+            pubkey, created_at, formatted_tags, content
+        );
+        debug!("commitment '{}'\n", msg);
         let id =
             secp256k1::Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(msg.as_bytes());
 
-        let signature = secp.sign_schnorr(&id, &key_pair);
+        let signature = secp.sign_schnorr(&id, &keypair);
 
         Event {
             id: id.to_string(),
@@ -31,13 +66,20 @@ impl Event {
             kind: 1,
             content,
             sig: signature.to_string(),
+            tags,
         }
     }
 
     pub fn format(&self) -> String {
         format!(
-            r#"["EVENT",{{"id": "{}", "pubkey": "{}", "created_at": {}, "kind": {}, "tags": [], "content": "{}", "sig": "{}"}}]"#,
-            self.id, self.pubkey, self.created_at, self.kind, self.content, self.sig
+            r#"["EVENT",{{"id": "{}", "pubkey": "{}", "created_at": {}, "kind": {}, "tags": [{}], "content": "{}", "sig": "{}"}}]"#,
+            self.id,
+            self.pubkey,
+            self.created_at,
+            self.kind,
+            Self::format_tags(&self.tags),
+            self.content,
+            self.sig
         )
     }
     pub fn print(&self) {
@@ -57,4 +99,42 @@ impl Event {
             .unwrap();
         ws_stream.close(None).await.unwrap();
     }
+
+    fn format_tags(tags: &Vec<Vec<String>>) -> String {
+        let mut formatted = String::new();
+
+        for i in 0..tags.len() {
+            let tag = &tags[i];
+            formatted.push_str(&format!(r#"["{}"]"#, tag.join(r#"", ""#)));
+            if i + 1 < tags.len() {
+                formatted.push_str(", ");
+            }
+        }
+        formatted
+    }
+}
+
+pub fn get_tags_for_reply(event: Event) -> Vec<Vec<String>> {
+    let mut e_tags = vec![];
+    let mut p_tags = vec![];
+    for t in event.tags {
+        if t[0] == "e" {
+            e_tags.push(t);
+        } else if t[0] == "p" {
+            p_tags.push(t);
+        }
+    }
+
+    debug!("Got e_tags: {:?}", e_tags);
+    debug!("Got p_tags: {:?}", p_tags);
+
+    p_tags.push(vec!["p".to_string(), event.pubkey]);
+
+    let mut all_tags = p_tags;
+    if e_tags.len() > 0 {
+        all_tags.push(e_tags[0].clone());
+        all_tags.push(vec!["e".to_string(), event.id]);
+    }
+
+    all_tags
 }
