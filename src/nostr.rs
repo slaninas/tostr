@@ -1,4 +1,3 @@
-use futures_util::sink::SinkExt;
 use secp256k1::Secp256k1;
 
 use log::debug;
@@ -19,7 +18,7 @@ pub struct EventNonSigned {
 }
 
 impl EventNonSigned {
-    pub fn sign(mut self, keypair: &secp256k1::KeyPair) -> Event {
+    pub fn sign(self, keypair: &secp256k1::KeyPair) -> Event {
         Event::new(keypair, self.content, self.created_at, self.tags)
     }
 }
@@ -84,20 +83,6 @@ impl Event {
     }
     pub fn print(&self) {
         println!("{}", self.format());
-    }
-
-    pub async fn send(&self, address: &String) {
-        // TODO: Keep the connection alive
-        let (mut ws_stream, _response) =
-            tokio_tungstenite::connect_async(url::Url::parse(address).unwrap())
-                .await
-                .expect("Can't connect");
-
-        ws_stream
-            .send(tungstenite::Message::Text(self.format().into()))
-            .await
-            .unwrap();
-        ws_stream.close(None).await.unwrap();
     }
 
     fn format_tags(tags: &Vec<Vec<String>>) -> String {

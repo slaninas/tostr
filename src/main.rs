@@ -1,4 +1,3 @@
-use futures_util::sink::SinkExt;
 use futures_util::StreamExt;
 use log::{debug, info};
 use std::io::Write;
@@ -14,11 +13,11 @@ async fn main() {
         .init();
 
     let config_path = std::path::PathBuf::from("config");
-    let config = tostr::parse_config(&config_path);
+    let config = tostr::utils::parse_config(&config_path);
     debug!("{:?}", config);
 
     info!("Starting bot");
-    let db = tostr::SimpleDatabase::from_file("blah".to_string());
+    let db = tostr::simpledb::SimpleDatabase::from_file("blah".to_string());
     let db = std::sync::Arc::new(std::sync::Mutex::new(db));
 
     let relay = &config.relays[0];
@@ -36,7 +35,7 @@ async fn main() {
     tostr::run(
         keypair,
         tostr::Sink {
-            sink: std::sync::Arc::new(std::sync::Mutex::new(sink)),
+            sink: std::sync::Arc::new(tokio::sync::Mutex::new(sink)),
             peer_addr: relay.clone(),
         },
         stream,
