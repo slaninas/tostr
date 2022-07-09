@@ -1,5 +1,5 @@
-use log::{info, debug};
 use crate::nostr;
+use log::{debug, info};
 
 const DATE_FORMAT_STR: &'static str = "%Y-%m-%d %H:%M:%S";
 
@@ -8,7 +8,6 @@ pub struct Config {
     pub refresh_interval_secs: u64,
     pub relays: Vec<String>,
 }
-
 
 impl std::fmt::Debug for Config {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -19,7 +18,6 @@ impl std::fmt::Debug for Config {
             .finish()
     }
 }
-
 
 pub fn parse_config(path: &std::path::Path) -> Config {
     let get_value = |line: String| line.split('=').collect::<Vec<_>>()[1].to_string();
@@ -55,13 +53,11 @@ pub fn parse_config(path: &std::path::Path) -> Config {
     }
 }
 
-
 pub struct Tweet {
     username: String,
     tweet: String,
     link: String,
 }
-
 
 pub fn get_tweet_event(tweet: &Tweet) -> nostr::EventNonSigned {
     let formatted = format!(
@@ -76,7 +72,6 @@ pub fn get_tweet_event(tweet: &Tweet) -> nostr::EventNonSigned {
         content: formatted,
     }
 }
-
 
 pub async fn get_new_tweets(
     username: &String,

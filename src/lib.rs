@@ -2,6 +2,8 @@ use futures_util::sink::SinkExt;
 use futures_util::StreamExt;
 use log::{debug, info};
 
+use rand::Rng;
+
 use tokio_tungstenite::WebSocketStream;
 
 pub mod nostr;
@@ -89,11 +91,44 @@ async fn handle_command(
     sink: Sink,
     refresh_interval_secs: u64,
 ) -> Result<nostr::EventNonSigned, String> {
-    let response = match event.content.get(..5) {
-        Some("add @") => Ok(handle_add(db, event, sink, refresh_interval_secs).await),
-        _ => Err(format!("Unknown command >{}<", event.content)),
+    let command = &event.content;
+
+    let response = if command.starts_with("add @") {
+        Ok(handle_add(db, event, sink, refresh_interval_secs).await)
+    } else if command.starts_with("random") {
+        Ok(handle_random(db, event).await)
+    } else {
+        Err(format!("Unknown command >{}<", command))
     };
     response
+}
+
+async fn handle_random(db: simpledb::Database, event: nostr::Event) -> nostr::EventNonSigned {
+
+    let follows = db.lock().unwrap().get_follows();
+    let index = rand::thread_rng().gen_range(0..follows.len());
+
+    let random_username = follows.keys().collect::<Vec<_>>()[index];
+
+    let secret = follows.get(random_username).unwrap();
+
+    let mut tags = nostr::get_tags_for_reply(event);
+    tags.push(vec![
+        "p".to_string(),
+        secret.x_only_public_key().0.to_string(),
+    ]);
+    let mention_index = tags.len() - 1;
+
+    debug!("Command random: returning {}", random_username);
+    nostr::EventNonSigned {
+        created_at: utils::unix_timestamp(),
+        kind: 1,
+        tags: tags,
+        content: format!(
+            "Hi, random account to follow: @{} with pubkey #[{}]",
+            random_username, mention_index
+        ),
+    }
 }
 
 async fn handle_add(
@@ -156,7 +191,8 @@ fn get_handle_response(
 async fn send(msg: String, sink: Sink) {
     debug!("Sending >{}< to {}", msg, sink.peer_addr);
     sink.sink
-        .lock().await
+        .lock()
+        .await
         .send(tungstenite::Message::Text(msg))
         .await
         .unwrap();
@@ -187,7 +223,6 @@ async fn fake_worker(username: String, refresh_interval_secs: u64) {
     }
 }
 
-
 pub async fn update_user(
     username: String,
     keypair: &secp256k1::KeyPair,
@@ -211,8 +246,10 @@ pub async fn update_user(
         // in order they were published. Still the created_at field can easily be the same so in the
         // end it depends on how the relays handle it
         for tweet in new_tweets.iter().rev() {
-            sink.sink.clone()
-                .lock().await
+            sink.sink
+                .clone()
+                .lock()
+                .await
                 .send(tungstenite::Message::Text(
                     utils::get_tweet_event(tweet).sign(&keypair).format(),
                 ))

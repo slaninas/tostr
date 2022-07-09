@@ -100,7 +100,6 @@ impl Event {
 }
 
 pub fn get_tags_for_reply(event: Event) -> Vec<Vec<String>> {
-
     let mut e_tags = vec![];
     let mut p_tags = vec![];
     let mut other_tags = vec![];
