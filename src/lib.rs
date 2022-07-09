@@ -33,6 +33,18 @@ pub async fn run(
     db: simpledb::Database,
     config: utils::Config,
 ) {
+    // Set profile
+    let event = nostr::Event::new(
+        &keypair,
+        utils::unix_timestamp(),
+        0,
+        vec![],
+        format!(
+            r#"{{\"name\":\"tostr_bot\",\"about\":\"Hi, I'm [tostr](https://github.com/slaninas/tostr) bot. Reply to me with 'add @twitter_account' or 'random'.\",\"picture\":\"https://st2.depositphotos.com/1187563/7129/i/450/depositphotos_71295829-stock-photo-old-style-photo-toast-popping.jpg\"}}"#,
+        ),
+    );
+
+    send(event.format(), sink.clone()).await;
     let welcome = nostr::Event::new(
         &keypair,
         utils::unix_timestamp(),
@@ -105,7 +117,6 @@ async fn handle_command(
 }
 
 async fn handle_random(db: simpledb::Database, event: nostr::Event) -> nostr::EventNonSigned {
-
     let follows = db.lock().unwrap().get_follows();
     let index = rand::thread_rng().gen_range(0..follows.len());
 
@@ -232,6 +243,18 @@ pub async fn update_user(
 ) {
     // fake_worker(username, refresh_interval_secs).await;
     // return;
+    let event = nostr::Event::new(
+        keypair,
+        utils::unix_timestamp(),
+        0,
+        vec![],
+        format!(
+            r#"{{\"name\":\"tostr_{}\",\"about\":\"Tweets forwarded from https://twitter.com/{} by [tostr](https://github.com/slaninas/tostr) bot.\",\"picture\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Twitter_Logo_Mini.svg/234px-Twitter_Logo_Mini.svg.png\"}}"#,
+            username, username
+        ),
+    );
+
+    send(event.format(), sink.clone()).await;
     let mut since: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
     loop {
         debug!(
