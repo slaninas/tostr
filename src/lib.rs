@@ -40,7 +40,7 @@ pub async fn run(
         0,
         vec![],
         format!(
-            r#"{{\"name\":\"tostr_bot\",\"about\":\"Hi, I'm [tostr](https://github.com/slaninas/tostr) bot. Reply to me with 'add @twitter_account' or 'random'.\",\"picture\":\"https://st2.depositphotos.com/1187563/7129/i/450/depositphotos_71295829-stock-photo-old-style-photo-toast-popping.jpg\"}}"#,
+            r#"{{\"name\":\"tostr_bot\",\"about\":\"Hi, I'm [tostr](https://github.com/slaninas/tostr) bot. Reply to me with 'add twitter_account' or 'random'.\",\"picture\":\"https://st2.depositphotos.com/1187563/7129/i/450/depositphotos_71295829-stock-photo-old-style-photo-toast-popping.jpg\"}}"#,
         ),
     );
 
@@ -137,7 +137,7 @@ async fn handle_random(db: simpledb::Database, event: nostr::Event) -> nostr::Ev
         kind: 1,
         tags: tags,
         content: format!(
-            "Hi, random account to follow: @{} with pubkey #[{}]",
+            "Hi, random account to follow: {} with pubkey #[{}]",
             random_username, mention_index
         ),
     }
@@ -149,7 +149,7 @@ async fn handle_add(
     sink: Sink,
     refresh_interval_secs: u64,
 ) -> nostr::EventNonSigned {
-    let username = event.content[5..event.content.len()].to_string();
+    let username = event.content[4..event.content.len()].to_string();
 
     if db.clone().lock().unwrap().contains_key(&username) {
         let keypair = simpledb::get_user_keypair(&username, db);
@@ -160,6 +160,19 @@ async fn handle_add(
         );
         return get_handle_response(event, &pubkey.to_string());
     }
+
+
+    if !utils::user_exists(&username).await {
+
+        return nostr::EventNonSigned {
+            created_at: utils::unix_timestamp(),
+            kind: 1,
+            tags: nostr::get_tags_for_reply(event),
+            content: format!("Hi, I wasn't able to find {} on Twitter :(.", username),
+        }
+
+    }
+
     let keypair = utils::get_random_keypair();
 
     db.clone()

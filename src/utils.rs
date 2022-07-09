@@ -124,6 +124,25 @@ pub async fn get_new_tweets(
     new_tweets
 }
 
+pub async fn user_exists(username: &String) -> bool {
+    let mut since: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
+
+    let cmd = format!(
+        "twint -u '{}' --since \"{}\"",
+        username,
+        since.format(DATE_FORMAT_STR),
+    );
+    debug!("Running >{}<", cmd);
+    let status = async_process::Command::new("bash")
+        .arg("-c")
+        .arg(cmd)
+        .status()
+        .await
+        .unwrap();
+
+    status.success()
+}
+
 pub fn unix_timestamp() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
