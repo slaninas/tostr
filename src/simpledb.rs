@@ -74,12 +74,10 @@ impl SimpleDatabase {
         let mut result = std::collections::HashMap::<String, secp256k1::KeyPair>::new();
         let secp = secp256k1::Secp256k1::new();
         for (username, secret) in &self.follows {
-            result
-                .insert(
-                    username.clone(),
-                    secp256k1::KeyPair::from_seckey_str(&secp, &secret).unwrap(),
-                )
-                .unwrap();
+            result.insert(
+                username.clone(),
+                secp256k1::KeyPair::from_seckey_str(&secp, &secret).unwrap(),
+            );
         }
         result
     }
