@@ -161,16 +161,13 @@ async fn handle_add(
         return get_handle_response(event, &pubkey.to_string());
     }
 
-
     if !utils::user_exists(&username).await {
-
         return nostr::EventNonSigned {
             created_at: utils::unix_timestamp(),
             kind: 1,
             tags: nostr::get_tags_for_reply(event),
             content: format!("Hi, I wasn't able to find {} on Twitter :(.", username),
-        }
-
+        };
     }
 
     let keypair = utils::get_random_keypair();
@@ -197,10 +194,7 @@ async fn handle_add(
     get_handle_response(event, &xonly_pubkey.to_string())
 }
 
-fn get_handle_response(
-    event: nostr::Event,
-    new_bot_pubkey: &str,
-) -> nostr::EventNonSigned {
+fn get_handle_response(event: nostr::Event, new_bot_pubkey: &str) -> nostr::EventNonSigned {
     let mut all_tags = nostr::get_tags_for_reply(event);
     all_tags.push(vec!["p".to_string(), new_bot_pubkey.to_string()]);
     let last_tag_position = all_tags.len() - 1;
@@ -209,7 +203,10 @@ fn get_handle_response(
         created_at: utils::unix_timestamp(),
         kind: 1,
         tags: all_tags,
-        content: format!("Hi, tweets will be forwarded to nostr by #[{}].", last_tag_position),
+        content: format!(
+            "Hi, tweets will be forwarded to nostr by #[{}].",
+            last_tag_position
+        ),
     }
 }
 
