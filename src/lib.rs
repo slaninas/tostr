@@ -141,7 +141,7 @@ fn get_handle_response(
     event: crate::nostr::Event,
     new_bot_pubkey: &str,
 ) -> crate::nostr::EventNonSigned {
-    let mut all_tags = crate::nostr::get_tags_for_reply(event);
+    let mut all_tags = crate::nostr::get_tags_for_reply(&event);
     all_tags.push(vec!["p".to_string(), new_bot_pubkey.to_string()]);
     let last_tag_position = all_tags.len() - 1;
 
