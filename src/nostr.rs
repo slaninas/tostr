@@ -100,26 +100,35 @@ impl Event {
 }
 
 pub fn get_tags_for_reply(event: Event) -> Vec<Vec<String>> {
+
     let mut e_tags = vec![];
     let mut p_tags = vec![];
+    let mut other_tags = vec![];
+
     for t in event.tags {
         if t[0] == "e" {
             e_tags.push(t);
         } else if t[0] == "p" {
             p_tags.push(t);
+        } else {
+            other_tags.push(t);
         }
     }
 
-    debug!("Got e_tags: {:?}", e_tags);
-    debug!("Got p_tags: {:?}", p_tags);
+    let mut tags = vec![];
 
-    p_tags.push(vec!["p".to_string(), event.pubkey]);
+    // Mention only author of the event
+    tags.push(vec!["p".to_string(), event.pubkey]);
 
-    let mut all_tags = p_tags;
+    // First event and event I'm going to reply to
     if e_tags.len() > 0 {
-        all_tags.push(e_tags[0].clone());
-        all_tags.push(vec!["e".to_string(), event.id]);
+        tags.push(e_tags[0].clone());
     }
+    tags.push(vec!["e".to_string(), event.id]);
 
-    all_tags
+    // Add all tags which are not "e" nor "p"
+    tags.append(&mut other_tags);
+
+    debug!("Returning these tags: {:?}", tags);
+    tags
 }
