@@ -50,7 +50,7 @@ pub async fn run(
         utils::unix_timestamp(),
         1,
         vec![],
-        "Hi, I'm tostr, reply with command 'add @twitter_account'".to_string(),
+        "Hi, I'm tostr, reply with command 'add twitter_account'".to_string(),
     );
 
     send(welcome.format(), sink.clone()).await;
@@ -75,7 +75,7 @@ pub async fn run(
         let data_str = data.to_string();
         debug!("Got message >{}<", data_str);
 
-        match serde_json::from_str::<crate::nostr::Message>(&data.to_string()) {
+        match serde_json::from_str::<nostr::Message>(&data.to_string()) {
             Ok(message) => {
                 match handle_command(
                     message.content,
@@ -106,7 +106,7 @@ async fn handle_command(
 ) -> Result<nostr::EventNonSigned, String> {
     let command = &event.content;
 
-    let response = if command.starts_with("add @") {
+    let response = if command.starts_with("add ") {
         Ok(handle_add(db, event, sink, refresh_interval_secs).await)
     } else if command.starts_with("random") {
         Ok(handle_random(db, event).await)
@@ -177,7 +177,7 @@ async fn handle_add(
     {
         let sink = sink.clone();
         tokio::spawn(async move {
-            crate::update_user(username, &keypair, sink, refresh_interval_secs).await;
+            update_user(username, &keypair, sink, refresh_interval_secs).await;
         });
     }
 
@@ -185,18 +185,18 @@ async fn handle_add(
 }
 
 fn get_handle_response(
-    event: crate::nostr::Event,
+    event: nostr::Event,
     new_bot_pubkey: &str,
-) -> crate::nostr::EventNonSigned {
-    let mut all_tags = crate::nostr::get_tags_for_reply(event);
+) -> nostr::EventNonSigned {
+    let mut all_tags = nostr::get_tags_for_reply(event);
     all_tags.push(vec!["p".to_string(), new_bot_pubkey.to_string()]);
     let last_tag_position = all_tags.len() - 1;
 
-    crate::nostr::EventNonSigned {
+    nostr::EventNonSigned {
         created_at: utils::unix_timestamp(),
         kind: 1,
         tags: all_tags,
-        content: format!("Hi, pubkey is #[{}]", last_tag_position),
+        content: format!("Hi, tweets will be forwarded to nostr by #[{}].", last_tag_position),
     }
 }
 
@@ -218,7 +218,7 @@ pub fn start_existing(db: simpledb::Database, config: &utils::Config, sink: Sink
             let refresh = config.refresh_interval_secs.clone();
             let sink = sink.clone();
             tokio::spawn(async move {
-                crate::update_user(username, &keypair, sink, refresh).await;
+                update_user(username, &keypair, sink, refresh).await;
             });
         }
     }
