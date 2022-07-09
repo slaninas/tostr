@@ -19,7 +19,7 @@ pub struct EventNonSigned {
 
 impl EventNonSigned {
     pub fn sign(self, keypair: &secp256k1::KeyPair) -> Event {
-        Event::new(keypair, self.content, self.created_at, self.tags)
+        Event::new(keypair, self.created_at, 1, self.tags, self.content)
     }
 }
 
@@ -37,9 +37,10 @@ pub struct Event {
 impl Event {
     pub fn new(
         keypair: &secp256k1::KeyPair,
-        content: String,
         created_at: u64,
+        kind: u64,
         tags: Vec<Vec<String>>,
+        content: String,
     ) -> Self {
         let secp = Secp256k1::new();
 
@@ -49,8 +50,8 @@ impl Event {
         formatted_tags.retain(|c| !c.is_whitespace());
 
         let msg = format!(
-            r#"[0,"{}",{},1,[{}],"{}"]"#,
-            pubkey, created_at, formatted_tags, content
+            r#"[0,"{}",{},{},[{}],"{}"]"#,
+            pubkey, created_at, kind, formatted_tags, content
         );
         debug!("commitment '{}'\n", msg);
         let id =
@@ -62,7 +63,7 @@ impl Event {
             id: id.to_string(),
             pubkey: pubkey.to_string(),
             created_at,
-            kind: 1,
+            kind,
             content,
             sig: signature.to_string(),
             tags,

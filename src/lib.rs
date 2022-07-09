@@ -35,9 +35,10 @@ pub async fn run(
 ) {
     let welcome = nostr::Event::new(
         &keypair,
-        "Hi, I'm tostr, reply with command 'add @twitter_account'".to_string(),
         utils::unix_timestamp(),
+        1,
         vec![],
+        "Hi, I'm tostr, reply with command 'add @twitter_account'".to_string(),
     );
 
     send(welcome.format(), sink.clone()).await;
