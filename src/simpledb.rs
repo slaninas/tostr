@@ -1,4 +1,4 @@
-use log::debug;
+use log::{debug, warn};
 use std::io::Write;
 
 pub type Database = std::sync::Arc<std::sync::Mutex<SimpleDatabase>>;
@@ -14,6 +14,11 @@ impl SimpleDatabase {
             follows: std::collections::HashMap::new(),
             file: path.clone(),
         };
+
+        if !std::path::Path::new(&path).exists() {
+            warn!("Database path {} doesn't exist, creating a new file", path);
+            std::fs::File::create(path.clone()).expect("Failed to create file");
+        }
 
         let content = std::fs::read_to_string(path).expect("Failed opening database file");
 

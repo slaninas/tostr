@@ -21,7 +21,7 @@ async fn main() {
 
     info!("Starting bot");
     // TODO: Use tokio Mutex?
-    let db = tostr::simpledb::SimpleDatabase::from_file("blah".to_string());
+    let db = tostr::simpledb::SimpleDatabase::from_file("data/users".to_string());
     let db = std::sync::Arc::new(std::sync::Mutex::new(db));
 
 
