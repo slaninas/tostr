@@ -4,6 +4,8 @@
 **T**witter to n**ostr**.
 Bot that forwards tweets to [nostr](https://github.com/nostr-protocol/nostr).
 
+You can interact with it using 'add twitter_username' or 'random' commands.
+
 
 ## How it works
 It uses [twint](https://github.com/minamotorin/twint.git) to get the tweets, making nostr events from them which are signed using
@@ -12,11 +14,11 @@ It uses [twint](https://github.com/minamotorin/twint.git) to get the tweets, mak
 ## How to run
 ```
 git clone https://github.com/slaninas/tostr/ && cd tostr
-# Add secret to config file, choose relays and add accounts to follow
+# Add secret to config file, choose refresh interval, relay and set limit for number of accounts
 sudo docker build -t tostr . && sudo docker run --rm -ti -name=tostr -v $PWD/data/:/app/data:rw tostr
 ```
-Now the bot should be running. It relays only new tweets that were posted
-after you launched it. It waits for `refresh_interval_secs` seconds between the checks.
+Now the bot should be running and waiting for mentions. You can reply to its message with 'add twitter_username' to add new account or with 'random' to get a random user.
+It relays only new tweets that were posted after you launched it.
 
 
 ## Known limitations/issues
@@ -28,9 +30,9 @@ I tested it with 40 accounts and it took almost a minute to check if there were 
 - ~~Tweets containing ' or " are not relayed~~
 
 ## TODOs
-- [x] Use existing websocket crate instead of spawning websocat process
-- [x] Find solution better than spawning nostril process
-- [x] Parallelization, async?
+- [x] ~~Use existing websocket crate instead of spawning websocat process~~
+- [x] ~~Find solution better than spawning nostril process~~
+- [x] ~~Parallelization, async?~~
 - [ ] Follow Twitters redirects and send original url to nostr
 - [x] ~~Add proper logging~~
 - [ ] Check timestamps that are used for twint's --since option, if the new tweets check takes too long some tweets may get ignored during the next check

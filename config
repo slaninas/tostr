@@ -9,4 +9,8 @@ refresh_interval_secs=300
 # Relay that will be used for listening and posting
 # See list of available relays from https://nostr-registry.netlify.app/
 relay=wss://nostr.rocks
+
+# Maximum number of accounts bot will follow, when it's depleted
+# instead of adding a new user the bot will say it can't add new users
+# due to a limit
 max_follows=25
