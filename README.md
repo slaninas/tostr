@@ -13,7 +13,7 @@ It uses [twint](https://github.com/minamotorin/twint.git) to get the tweets, mak
 ```
 git clone https://github.com/slaninas/tostr/ && cd tostr
 # Add secret to config file, choose relays and add accounts to follow
-sudo docker build -t tostr . && sudo docker run --rm -ti tostr
+sudo docker build -t tostr . && sudo docker run --rm -ti -name=tostr -v $PWD/data/:/app/data:rw tostr
 ```
 Now the bot should be running. It relays only new tweets that were posted
 after you launched it. It waits for `refresh_interval_secs` seconds between the checks.
