@@ -70,7 +70,13 @@ pub async fn run(
     start_existing(db.clone(), &config, sink.clone());
 
     let f = stream.for_each(|message| async {
-        let data = message.unwrap();
+        let data = match message {
+            Ok(data) => data,
+            Err(error) => {
+                info!("Stream read failed: {}", error);
+                return;
+            }
+        };
 
         let data_str = data.to_string();
         debug!("Got message >{}<", data_str);

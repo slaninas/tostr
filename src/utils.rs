@@ -3,6 +3,7 @@ use log::{debug, info};
 
 const DATE_FORMAT_STR: &'static str = "%Y-%m-%d %H:%M:%S";
 
+#[derive(Clone)]
 pub struct Config {
     pub secret: String,
     pub refresh_interval_secs: u64,
