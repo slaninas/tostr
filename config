@@ -7,7 +7,7 @@ secret=
 refresh_interval_secs=300
 
 # Relay that will be used for listening and posting
-# See list of available relays from https://nostr-registry.netlify.app/
+# See list of available relays at https://nostr-registry.netlify.app/
 relay=wss://nostr.rocks
 
 # Maximum number of accounts bot will follow, when it's depleted
