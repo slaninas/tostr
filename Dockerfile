@@ -13,8 +13,9 @@ RUN git clone --depth=1 https://github.com/minamotorin/twint.git && \
     cd twint && \
     pip3 install . -r requirements.txt
 
-COPY . /app
+COPY config Cargo.toml Cargo.lock /app/
+COPY src /app/src
 
 # TODO: Add non-root user and use it
-ENV RUST_LOG=info
-RUN bash -c 'cd /app && cargo run --release'
+ENV RUST_LOG=debug
+CMD cd /app && cargo run --release 2>&1 | tee data/log
