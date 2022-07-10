@@ -33,39 +33,8 @@ pub async fn run(
     db: simpledb::Database,
     config: utils::Config,
 ) {
-    // Set profile
-    let event = nostr::Event::new(
-        &keypair,
-        utils::unix_timestamp(),
-        0,
-        vec![],
-        format!(
-            r#"{{\"name\":\"tostr_bot\",\"about\":\"Hi, I'm [tostr](https://github.com/slaninas/tostr) bot. Reply to me with 'add twitter_account' or 'random'.\",\"picture\":\"https://st2.depositphotos.com/1187563/7129/i/450/depositphotos_71295829-stock-photo-old-style-photo-toast-popping.jpg\"}}"#,
-        ),
-    );
 
-    send(event.format(), sink.clone()).await;
-    let welcome = nostr::Event::new(
-        &keypair,
-        utils::unix_timestamp(),
-        1,
-        vec![],
-        "Hi, I'm tostr, reply with command 'add twitter_account'".to_string(),
-    );
-
-    send(welcome.format(), sink.clone()).await;
-
-    // Listen for my pubkey mentions
-    send(
-        format!(
-            r##"["REQ", "{}", {{"#p": ["{}"], "since": {}}} ]"##,
-            "dsfasdfdafadf",
-            keypair.x_only_public_key().0,
-            utils::unix_timestamp(),
-        ),
-        sink.clone(),
-    )
-    .await;
+    request_subscription(&keypair, sink.clone()).await;
 
     start_existing(db.clone(), &config, sink.clone());
 
@@ -213,7 +182,7 @@ fn get_handle_response(event: nostr::Event, new_bot_pubkey: &str) -> nostr::Even
     }
 }
 
-async fn send(msg: String, sink: Sink) {
+pub async fn send(msg: String, sink: Sink) {
     debug!("Sending >{}< to {}", msg, sink.peer_addr);
     sink.sink
         .lock()
@@ -222,6 +191,47 @@ async fn send(msg: String, sink: Sink) {
         .await
         .unwrap();
 }
+
+pub async fn introduction(keypair: &secp256k1::KeyPair, sink: Sink) {
+    // Set profile
+    let event = nostr::Event::new(
+        &keypair,
+        utils::unix_timestamp(),
+        0,
+        vec![],
+        format!(
+            r#"{{\"name\":\"tostr_bot\",\"about\":\"Hi, I'm [tostr](https://github.com/slaninas/tostr) bot. Reply to me with 'add twitter_account' or 'random'.\",\"picture\":\"https://st2.depositphotos.com/1187563/7129/i/450/depositphotos_71295829-stock-photo-old-style-photo-toast-popping.jpg\"}}"#,
+        ),
+    );
+
+    send(event.format(), sink.clone()).await;
+
+    // Say hi
+    let welcome = nostr::Event::new(
+        &keypair,
+        utils::unix_timestamp(),
+        1,
+        vec![],
+        "Hi, I'm tostr, reply with command 'add twitter_account'".to_string(),
+    );
+
+    send(welcome.format(), sink.clone()).await;
+}
+
+async fn request_subscription(keypair: &secp256k1::KeyPair, sink: Sink) {
+    // Listen for my pubkey mentions
+    send(
+        format!(
+            r##"["REQ", "{}", {{"#p": ["{}"], "since": {}}} ]"##,
+            "dsfasdfdafadfdsafasdfadfsjoijoijoihoihohoho9891203f",
+            keypair.x_only_public_key().0,
+            utils::unix_timestamp(),
+        ),
+        sink,
+    )
+    .await;
+}
+
 
 pub fn start_existing(db: simpledb::Database, config: &utils::Config, sink: Sink) {
     for (username, keypair) in db.lock().unwrap().get_follows() {

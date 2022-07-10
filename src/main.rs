@@ -2,7 +2,8 @@ use futures_util::StreamExt;
 use log::{debug, info};
 use std::io::Write;
 
-type WebSocket = tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+type WebSocket =
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 #[tokio::main]
 async fn main() {
@@ -25,6 +26,8 @@ async fn main() {
 
     let relay = &config.relays[0];
 
+    let mut first_connection = true;
+
     // TODO: Don't send Hi message in a loop
     // Also set profiles only once when new users are created
     loop {
@@ -34,20 +37,24 @@ async fn main() {
         let secp = secp256k1::Secp256k1::new();
         let keypair = secp256k1::KeyPair::from_seckey_str(&secp, &config.secret).unwrap();
 
-        tostr::run(
-            keypair,
-            tostr::Sink {
-                sink: std::sync::Arc::new(tokio::sync::Mutex::new(sink)),
-                peer_addr: relay.clone(),
-            },
-            stream,
-            db.clone(),
-            config.clone(),
-        )
-        .await;
+        let sink = tostr::Sink {
+            sink: std::sync::Arc::new(tokio::sync::Mutex::new(sink)),
+            peer_addr: relay.clone(),
+        };
+
+        if first_connection {
+            first_connection = false;
+            tostr::introduction(&keypair, sink.clone()).await;
+        }
+
+
+        tostr::run(keypair, sink, stream, db.clone(), config.clone()).await;
 
         let wait_secs = 20;
-        info!("Connection lost. Will try to reconnect in {} seconds", wait_secs);
+        info!(
+            "Connection lost. Will try to reconnect in {} seconds",
+            wait_secs
+        );
         tokio::time::sleep(std::time::Duration::from_secs(wait_secs)).await;
     }
 }
