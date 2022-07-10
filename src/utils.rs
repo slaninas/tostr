@@ -61,10 +61,7 @@ pub struct Tweet {
 }
 
 pub fn get_tweet_event(tweet: &Tweet) -> nostr::EventNonSigned {
-    let formatted = format!(
-        "[@{}@twitter.com]({}): {}",
-        tweet.username, tweet.link, tweet.tweet
-    );
+    let formatted = format!("{} ([source]({}))", tweet.tweet, tweet.link);
 
     nostr::EventNonSigned {
         created_at: unix_timestamp(),

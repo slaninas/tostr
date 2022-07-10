@@ -142,10 +142,7 @@ async fn handle_random(db: simpledb::Database, event: nostr::Event) -> nostr::Ev
         created_at: utils::unix_timestamp(),
         kind: 1,
         tags: tags,
-        content: format!(
-            "Hi, random account to follow: {} with pubkey #[{}]",
-            random_username, mention_index
-        ),
+        content: format!("Hi, random account to follow: #[{}]", mention_index),
     }
 }
 
@@ -155,13 +152,13 @@ async fn handle_add(
     sink: Sink,
     refresh_interval_secs: u64,
 ) -> nostr::EventNonSigned {
-    let username = event.content[4..event.content.len()].to_string();
+    let username = event.content[4..event.content.len()].to_ascii_lowercase().replace("@", "");
 
     if db.clone().lock().unwrap().contains_key(&username) {
         let keypair = simpledb::get_user_keypair(&username, db);
         let (pubkey, _parity) = keypair.x_only_public_key();
         debug!(
-            "User @{} already added before. Sending existing pubkey {}",
+            "User {} already added before. Sending existing pubkey {}",
             username, pubkey
         );
         return get_handle_response(event, &pubkey.to_string());
