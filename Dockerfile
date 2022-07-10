@@ -13,7 +13,7 @@ RUN git clone --depth=1 https://github.com/minamotorin/twint.git && \
     cd twint && \
     pip3 install . -r requirements.txt
 
-COPY config Cargo.toml Cargo.lock /app/
+COPY config Cargo.toml /app/
 COPY src /app/src
 
 # TODO: Add non-root user and use it
