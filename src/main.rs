@@ -9,10 +9,10 @@ type WebSocket =
 async fn main() {
     let start = std::time::Instant::now();
     env_logger::Builder::from_default_env()
-        .format(move |buf, rec| {
-            let t = start.elapsed().as_secs_f32();
-            writeln!(buf, "{:.03} [{}] - {}", t, rec.level(), rec.args())
-        })
+        // .format(move |buf, rec| {
+            // let t = start.elapsed().as_secs_f32();
+            // writeln!(buf, "{:.03} [{}] - {}", t, rec.level(), rec.args())
+        // })
         .init();
 
     let config_path = std::path::PathBuf::from("config");
