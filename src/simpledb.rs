@@ -81,6 +81,10 @@ impl SimpleDatabase {
         }
         result
     }
+
+    pub fn follows_count(&self) -> usize {
+        self.follows.len()
+    }
 }
 
 pub fn get_user_keypair(username: &String, db: Database) -> secp256k1::KeyPair {

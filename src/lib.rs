@@ -56,7 +56,7 @@ pub async fn run(
                     message.content,
                     db.clone(),
                     sink.clone(),
-                    config.refresh_interval_secs,
+                    &config,
                 )
                 .await
                 {
@@ -77,12 +77,12 @@ async fn handle_command(
     event: nostr::Event,
     db: simpledb::Database,
     sink: Sink,
-    refresh_interval_secs: u64,
+    config: &utils::Config,
 ) -> Result<nostr::EventNonSigned, String> {
     let command = &event.content;
 
     let response = if command.starts_with("add ") {
-        Ok(handle_add(db, event, sink, refresh_interval_secs).await)
+        Ok(handle_add(db, event, sink, &config).await)
     } else if command.starts_with("random") {
         Ok(handle_random(db, event).await)
     } else {
@@ -119,7 +119,7 @@ async fn handle_add(
     db: simpledb::Database,
     event: nostr::Event,
     sink: Sink,
-    refresh_interval_secs: u64,
+    config: &utils::Config,
 ) -> nostr::EventNonSigned {
     let username = event.content[4..event.content.len()].to_ascii_lowercase().replace("@", "");
 
@@ -133,6 +133,15 @@ async fn handle_add(
         return get_handle_response(event, &pubkey.to_string());
     }
 
+    if db.lock().unwrap().follows_count() + 1 > config.max_follows {
+        return nostr::EventNonSigned {
+            created_at: utils::unix_timestamp(),
+            kind: 1,
+            tags: nostr::get_tags_for_reply(event),
+            content: format!("Hi, sorry, couldn't add new account. I'm already running at my max capacity ({} users).", config.max_follows),
+        };
+    }
+
     if !utils::user_exists(&username).await {
         return nostr::EventNonSigned {
             created_at: utils::unix_timestamp(),
@@ -144,7 +153,7 @@ async fn handle_add(
 
     let keypair = utils::get_random_keypair();
 
-    db.clone()
+    db
         .lock()
         .unwrap()
         .insert(username.clone(), keypair.display_secret().to_string())
@@ -158,6 +167,7 @@ async fn handle_add(
 
     {
         let sink = sink.clone();
+        let refresh_interval_secs = config.refresh_interval_secs;
         tokio::spawn(async move {
             update_user(username, &keypair, sink, refresh_interval_secs).await;
         });

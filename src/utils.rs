@@ -1,5 +1,5 @@
 use crate::nostr;
-use log::{debug, info};
+use log::{debug, info, warn};
 
 const DATE_FORMAT_STR: &'static str = "%Y-%m-%d %H:%M:%S";
 
@@ -7,7 +7,8 @@ const DATE_FORMAT_STR: &'static str = "%Y-%m-%d %H:%M:%S";
 pub struct Config {
     pub secret: String,
     pub refresh_interval_secs: u64,
-    pub relays: Vec<String>,
+    pub relay: String,
+    pub max_follows: usize,
 }
 
 impl std::fmt::Debug for Config {
@@ -15,7 +16,8 @@ impl std::fmt::Debug for Config {
         fmt.debug_struct("Config")
             .field("secret", &"***")
             .field("refresh_interval_secs", &self.refresh_interval_secs)
-            .field("relays", &self.relays)
+            .field("relay", &self.relay)
+            .field("max_follows", &self.max_follows)
             .finish()
     }
 }
@@ -27,7 +29,8 @@ pub fn parse_config(path: &std::path::Path) -> Config {
 
     let mut secret = String::new();
     let mut refresh_interval_secs = 0;
-    let mut relays = vec![];
+    let mut relay = String::new();
+    let mut max_follows = 0;
 
     for line in content.lines() {
         let line = line.to_string();
@@ -38,19 +41,27 @@ pub fn parse_config(path: &std::path::Path) -> Config {
             refresh_interval_secs = get_value(line)
                 .parse::<u64>()
                 .expect("Failed to parse the refresh interval.");
-        } else if line.starts_with("add_relay") {
-            relays.push(get_value(line))
+        } else if line.starts_with("relay") {
+            relay = get_value(line);
+        } else if line.starts_with("max_follows") {
+            max_follows = get_value(line).parse::<usize>().expect("Can't parse value");
+        } else if line.starts_with("#") {
+        // Ignoring comments
+        } else {
+            warn!("Unknown config line >{}", line);
         }
     }
 
     assert!(secret.len() > 0);
     assert!(refresh_interval_secs > 0);
-    assert!(relays.len() > 0);
+    assert!(relay.len() > 0);
+    assert!(max_follows > 0);
 
     Config {
         secret,
         refresh_interval_secs,
-        relays,
+        relay,
+        max_follows,
     }
 }
 

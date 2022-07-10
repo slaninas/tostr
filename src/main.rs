@@ -24,14 +24,13 @@ async fn main() {
     let db = tostr::simpledb::SimpleDatabase::from_file("blah".to_string());
     let db = std::sync::Arc::new(std::sync::Mutex::new(db));
 
-    let relay = &config.relays[0];
 
     let mut first_connection = true;
 
     // TODO: Don't send Hi message in a loop
     // Also set profiles only once when new users are created
     loop {
-        let ws_stream = connect(relay).await;
+        let ws_stream = connect(&config.relay).await;
         let (sink, stream) = ws_stream.split();
 
         let secp = secp256k1::Secp256k1::new();
@@ -39,7 +38,7 @@ async fn main() {
 
         let sink = tostr::Sink {
             sink: std::sync::Arc::new(tokio::sync::Mutex::new(sink)),
-            peer_addr: relay.clone(),
+            peer_addr: config.relay.clone(),
         };
 
         if first_connection {
