@@ -49,7 +49,7 @@ async fn main() {
 
         tostr::run(keypair, sink, stream, db.clone(), config.clone()).await;
 
-        let wait_secs = 20;
+        let wait_secs = 30;
         info!(
             "Connection lost. Will try to reconnect in {} seconds",
             wait_secs
