@@ -37,6 +37,6 @@ I tested it with 40 accounts and it took almost a minute to check if there were 
 - [x] ~~Add proper logging~~
 - [ ] Check timestamps that are used for twint's --since option, if the new tweets check takes too long some tweets may get ignored during the next check
 - [ ] Error handling
-- [ ] Read "hello" message from a config instead of using hardcoded one and post it when bot starts
+- [x] ~~Read "hello" message from a config instead of using hardcoded one and post it when bot starts~~
 - [ ] Don't send `set_metadata` again after reconnect
 - [ ] Cleanup
