@@ -22,4 +22,4 @@ RUN cd /app && \
 # TODO: Add non-root user and use it
 COPY config /app/
 ENV RUST_LOG=debug
-CMD cd /app && cargo run --release 2>&1 | tee data/log
+CMD cd /app && cargo run --release 2>&1 | tee -a data/log
