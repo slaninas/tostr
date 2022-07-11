@@ -6,6 +6,7 @@ const DATE_FORMAT_STR: &'static str = "%Y-%m-%d %H:%M:%S";
 #[derive(Clone)]
 pub struct Config {
     pub secret: String,
+    pub hello_message: String,
     pub refresh_interval_secs: u64,
     pub relay: String,
     pub max_follows: usize,
@@ -15,6 +16,7 @@ impl std::fmt::Debug for Config {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         fmt.debug_struct("Config")
             .field("secret", &"***")
+            .field("hello_message", &self.hello_message)
             .field("refresh_interval_secs", &self.refresh_interval_secs)
             .field("relay", &self.relay)
             .field("max_follows", &self.max_follows)
@@ -23,11 +25,21 @@ impl std::fmt::Debug for Config {
 }
 
 pub fn parse_config(path: &std::path::Path) -> Config {
-    let get_value = |line: String| line.split('=').collect::<Vec<_>>()[1].to_string();
+    let get_value = |line: String| {
+
+        let mut value = line.split('=').collect::<Vec<_>>()[1].to_string();
+        if value.starts_with('"') && value.ends_with('"'){
+            value = value[1..value.len() - 1].to_string();
+        }
+        value
+    };
+
+
 
     let content = std::fs::read_to_string(path).expect("Config reading failed.");
 
     let mut secret = String::new();
+    let mut hello_message = String::new();
     let mut refresh_interval_secs = 0;
     let mut relay = String::new();
     let mut max_follows = 0;
@@ -37,6 +49,8 @@ pub fn parse_config(path: &std::path::Path) -> Config {
 
         if line.starts_with("secret") {
             secret = get_value(line);
+        } else if line.starts_with("hello_message") {
+            hello_message = get_value(line);
         } else if line.starts_with("refresh_interval_secs") {
             refresh_interval_secs = get_value(line)
                 .parse::<u64>()
@@ -46,19 +60,21 @@ pub fn parse_config(path: &std::path::Path) -> Config {
         } else if line.starts_with("max_follows") {
             max_follows = get_value(line).parse::<usize>().expect("Can't parse value");
         } else if line.starts_with("#") {
-        // Ignoring comments
+            // Ignoring comments
         } else {
             warn!("Unknown config line >{}", line);
         }
     }
 
     assert!(secret.len() > 0);
+    assert!(hello_message.len() > 0);
     assert!(refresh_interval_secs > 0);
     assert!(relay.len() > 0);
     assert!(max_follows > 0);
 
     Config {
         secret,
+        hello_message,
         refresh_interval_secs,
         relay,
         max_follows,

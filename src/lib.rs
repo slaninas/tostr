@@ -33,7 +33,6 @@ pub async fn run(
     db: simpledb::Database,
     config: utils::Config,
 ) {
-
     request_subscription(&keypair, sink.clone()).await;
 
     start_existing(db.clone(), &config, sink.clone());
@@ -202,7 +201,7 @@ pub async fn send(msg: String, sink: Sink) {
         .unwrap();
 }
 
-pub async fn introduction(keypair: &secp256k1::KeyPair, sink: Sink) {
+pub async fn introduction(hello_message: String, keypair: &secp256k1::KeyPair, sink: Sink) {
     // Set profile
     let event = nostr::Event::new(
         &keypair,
@@ -222,7 +221,7 @@ pub async fn introduction(keypair: &secp256k1::KeyPair, sink: Sink) {
         utils::unix_timestamp(),
         1,
         vec![],
-        "Hi, I'm tostr, reply with command 'add twitter_account'".to_string(),
+        hello_message,
     );
 
     send(welcome.format(), sink.clone()).await;

@@ -1,7 +1,8 @@
 # Uses value=key syntax
 
 # Private key for the bot goes here
-secret=
+# Message bot will send when starting
+hello_message="wassuuuuuuuuuuuuuuuuuuuuuup, I am tostr"
 
 # Fow how many seconds to wait after last twitter account was checked
 refresh_interval_secs=300
