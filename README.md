@@ -39,3 +39,4 @@ I tested it with 40 accounts and it took almost a minute to check if there were 
 - [ ] Error handling
 - [ ] Read "hello" message from a config instead of using hardcoded one and post it when bot starts
 - [ ] Don't send `set_metadata` again after reconnect
+- [ ] Cleanup
