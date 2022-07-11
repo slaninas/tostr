@@ -1,6 +1,8 @@
 # Uses value=key syntax
 
-# Private key for the bot goes here
+# Private key (hex) for the bot goes here
+secret=
+
 # Message bot will send when starting
 hello_message="wassuuuuuuuuuuuuuuuuuuuuuup, I am tostr"
 
