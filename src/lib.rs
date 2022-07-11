@@ -51,14 +51,7 @@ pub async fn run(
 
         match serde_json::from_str::<nostr::Message>(&data.to_string()) {
             Ok(message) => {
-                match handle_command(
-                    message.content,
-                    db.clone(),
-                    sink.clone(),
-                    &config,
-                )
-                .await
-                {
+                match handle_command(message.content, db.clone(), sink.clone(), &config).await {
                     Ok(response) => send(response.sign(&keypair).format(), sink.clone()).await,
                     Err(e) => debug!("{}", e),
                 }
@@ -120,7 +113,9 @@ async fn handle_add(
     sink: Sink,
     config: &utils::Config,
 ) -> nostr::EventNonSigned {
-    let username = event.content[4..event.content.len()].to_ascii_lowercase().replace("@", "");
+    let username = event.content[4..event.content.len()]
+        .to_ascii_lowercase()
+        .replace("@", "");
 
     if db.clone().lock().unwrap().contains_key(&username) {
         let keypair = simpledb::get_user_keypair(&username, db);
@@ -152,8 +147,7 @@ async fn handle_add(
 
     let keypair = utils::get_random_keypair();
 
-    db
-        .lock()
+    db.lock()
         .unwrap()
         .insert(username.clone(), keypair.display_secret().to_string())
         .unwrap();
@@ -240,7 +234,6 @@ async fn request_subscription(keypair: &secp256k1::KeyPair, sink: Sink) {
     )
     .await;
 }
-
 
 pub fn start_existing(db: simpledb::Database, config: &utils::Config, sink: Sink) {
     for (username, keypair) in db.lock().unwrap().get_follows() {
