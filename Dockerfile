@@ -6,7 +6,7 @@ ENV TZ=Europe/London
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 
-RUN apt update && apt install -y gpg wget vim git g++ python3 python3-pip
+RUN apt update && apt install -y gpg wget vim git g++ python3 python3-pip expect-dev
 
 # Build twint
 RUN git clone --depth=1 https://github.com/minamotorin/twint.git && \
@@ -22,4 +22,6 @@ RUN cd /app && \
 # TODO: Add non-root user and use it
 COPY config /app/
 ENV RUST_LOG=debug
-CMD cd /app && cargo run --release 2>&1 | tee -a data/log
+
+# Use unbuffer to preserve colors in terminal output while using tee
+CMD cd /app && unbuffer cargo run --release 2>&1 | tee -a data/log
