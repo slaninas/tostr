@@ -271,14 +271,22 @@ pub async fn update_user(
 ) {
     // fake_worker(username, refresh_interval_secs).await;
     // return;
+
+    let pic_cmd = format!(r#"twint --user-full -u '{}' 2>&1 | sed 's/.*Avatar: \(https.*\)/\1/' | tr -d \\n"#, username);
+    debug!("Runnings bash -c '{}", pic_cmd);
+
+    let stdout = async_process::Command::new("bash").arg("-c").arg(pic_cmd).output().await.expect("twint command failed").stdout;
+    let pic_url = String::from_utf8(stdout).unwrap();
+    debug!("Found pic url {} for {}", pic_url, username);
+
     let event = nostr::Event::new(
         keypair,
         utils::unix_timestamp(),
         0,
         vec![],
         format!(
-            r#"{{\"name\":\"tostr_{}\",\"about\":\"Tweets forwarded from https://twitter.com/{} by [tostr](https://github.com/slaninas/tostr) bot.\",\"picture\":\"https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Twitter_Logo_Mini.svg/234px-Twitter_Logo_Mini.svg.png\"}}"#,
-            username, username
+            r#"{{\"name\":\"tostr_{}\",\"about\":\"Tweets forwarded from https://twitter.com/{} by [tostr](https://github.com/slaninas/tostr) bot.\",\"picture\":\"{}\"}}"#,
+            username, username, pic_url
         ),
     );
 
