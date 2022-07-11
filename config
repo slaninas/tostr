@@ -4,7 +4,7 @@
 secret=
 
 # Message bot will send when starting
-hello_message="wassuuuuuuuuuuuuuuuuuuuuuup, I am tostr"
+hello_message="Hi, I'm [tostr](https://github.com/slaninas/tostr/) bot. Reply to me with 'add twitter_username' or 'random'."
 
 # Fow how many seconds to wait after last twitter account was checked
 refresh_interval_secs=300
