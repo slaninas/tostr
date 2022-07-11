@@ -131,10 +131,17 @@ pub async fn get_new_tweets(
 
             for i in 1..csv.len() {
                 let line = csv[i].split("\t").collect::<Vec<_>>();
+
+                let tweet = line[10].to_string();
+                // Filter out replies
+                if tweet.starts_with('@') {
+                    debug!("Ignoring reply >{}< from {}", tweet, username);
+                    continue;
+                }
                 new_tweets.push(Tweet {
                     // date: format!("{} {} {}", line[3], line[4], line[5]),
                     username: line[7].to_string(),
-                    tweet: line[10].to_string(),
+                    tweet,
                     link: line[20].to_string(),
                 });
             }
