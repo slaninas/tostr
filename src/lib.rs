@@ -222,11 +222,14 @@ pub async fn introduction(hello_message: String, keypair: &secp256k1::KeyPair, s
 }
 
 async fn request_subscription(keypair: &secp256k1::KeyPair, sink: Sink) {
+
+    let random_string = rand::thread_rng().sample_iter(rand::distributions::Alphanumeric).take(64).collect::<Vec<_>>();
+    let random_string = String::from_utf8(random_string).unwrap();
     // Listen for my pubkey mentions
     send(
         format!(
             r##"["REQ", "{}", {{"#p": ["{}"], "since": {}}} ]"##,
-            "dsfasdfdafadfdsafasdfadfsjoijoijoihoihohoho9891203f",
+            random_string,
             keypair.x_only_public_key().0,
             utils::unix_timestamp(),
         ),
