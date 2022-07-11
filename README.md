@@ -15,7 +15,7 @@ It uses [twint](https://github.com/minamotorin/twint.git) to get the tweets, mak
 ```
 git clone https://github.com/slaninas/tostr/ && cd tostr
 # Add secret to config file, choose refresh interval, relay and set limit for number of accounts
-sudo docker build -t tostr . && sudo docker run --rm -ti -name=tostr -v $PWD/data/:/app/data:rw tostr
+sudo docker build -t tostr . && sudo docker run --rm -ti --name=tostr -v $PWD/data/:/app/data:rw tostr
 ```
 Now the bot should be running and waiting for mentions. You can reply to its message with 'add twitter_username' to add new account or with 'random' to get a random user.
 It relays only new tweets that were posted after you launched it.
