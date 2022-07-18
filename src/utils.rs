@@ -107,7 +107,7 @@ pub async fn get_new_tweets(
 
     // let since = "2022-07-03 20:39:17";
     let cmd = format!(
-        "twint -u '{}' --since \"{}\" --csv -o {}",
+        "twint -u '{}' --since \"{}\" --csv -o {} 1>/dev/null",
         username,
         since.format(DATE_FORMAT_STR),
         // since,
@@ -160,7 +160,7 @@ pub async fn user_exists(username: &String) -> bool {
     let mut since: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
 
     let cmd = format!(
-        "twint -u '{}' --since \"{}\"",
+        "twint -u '{}' --since \"{}\" 1>/dev/null",
         username,
         since.format(DATE_FORMAT_STR),
     );
