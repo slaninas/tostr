@@ -59,10 +59,11 @@ pub fn parse_config(path: &std::path::Path) -> Config {
             relay = get_value(line);
         } else if line.starts_with("max_follows") {
             max_follows = get_value(line).parse::<usize>().expect("Can't parse value");
-        } else if line.starts_with("#") {
-            // Ignoring comments
+        } else if line.starts_with("#") || line.len() == 0 {
+            // Ignoring comments and blank lines
         } else {
-            warn!("Unknown config line >{}", line);
+
+            warn!("Unknown config line >{}<", line);
         }
     }
 
