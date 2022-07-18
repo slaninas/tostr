@@ -306,15 +306,7 @@ pub async fn update_user(
         // in order they were published. Still the created_at field can easily be the same so in the
         // end it depends on how the relays handle it
         for tweet in new_tweets.iter().rev() {
-            sink.sink
-                .clone()
-                .lock()
-                .await
-                .send(tungstenite::Message::Text(
-                    utils::get_tweet_event(tweet).sign(&keypair).format(),
-                ))
-                .await
-                .unwrap();
+            send(utils::get_tweet_event(tweet).sign(&keypair).format(), sink.clone());
         }
         // break;
     }
