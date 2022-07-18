@@ -26,15 +26,12 @@ impl std::fmt::Debug for Config {
 
 pub fn parse_config(path: &std::path::Path) -> Config {
     let get_value = |line: String| {
-
         let mut value = line.split('=').collect::<Vec<_>>()[1].to_string();
-        if value.starts_with('"') && value.ends_with('"'){
+        if value.starts_with('"') && value.ends_with('"') {
             value = value[1..value.len() - 1].to_string();
         }
         value
     };
-
-
 
     let content = std::fs::read_to_string(path).expect("Config reading failed.");
 
@@ -106,12 +103,10 @@ pub async fn get_new_tweets(
     debug!("Checking new tweets from {}", username);
     let workfile = format!("{}_workfile.csv", username);
 
-    // let since = "2022-07-03 20:39:17";
     let cmd = format!(
         "twint -u '{}' --since \"{}\" --csv -o {} 1>/dev/null",
         username,
         since.format(DATE_FORMAT_STR),
-        // since,
         workfile
     );
     debug!("Running >{}<", cmd);
