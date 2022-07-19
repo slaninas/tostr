@@ -99,14 +99,16 @@ pub fn get_tweet_event(tweet: &Tweet) -> nostr::EventNonSigned {
 pub async fn get_new_tweets(
     username: &String,
     since: chrono::DateTime<chrono::offset::Local>,
+    until: chrono::DateTime<chrono::offset::Local>,
 ) -> Vec<Tweet> {
     debug!("Checking new tweets from {}", username);
     let workfile = format!("{}_workfile.csv", username);
 
     let cmd = format!(
-        "twint -u '{}' --since \"{}\" --csv -o {} 1>/dev/null",
+        "twint -u '{}' --since \"{}\" --until \"{}\" --csv -o {} 1>/dev/null",
         username,
         since.format(DATE_FORMAT_STR),
+        until.format(DATE_FORMAT_STR),
         workfile
     );
     debug!("Running >{}<", cmd);

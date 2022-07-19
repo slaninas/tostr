@@ -291,7 +291,10 @@ pub async fn update_user(
     );
 
     send(event.format(), sink.clone()).await;
+
     let mut since: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
+    let mut until: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
+
     loop {
         debug!(
             "Worker for @{} is going to sleep for {} s",
@@ -299,8 +302,10 @@ pub async fn update_user(
         );
         tokio::time::sleep(std::time::Duration::from_secs(refresh_interval_secs)).await;
 
-        let new_tweets = utils::get_new_tweets(&username, since).await;
-        since = std::time::SystemTime::now().into();
+        until = std::time::SystemTime::now().into();
+        let new_tweets = utils::get_new_tweets(&username, since, until).await;
+        // --since seems to be inclusive and --until exclusive so this should be fine
+        since = until;
 
         // twint returns newest tweets first, reverse the Vec here so that tweets are send to relays
         // in order they were published. Still the created_at field can easily be the same so in the
