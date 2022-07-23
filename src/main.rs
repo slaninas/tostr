@@ -43,7 +43,7 @@ async fn main() {
 
         if first_connection {
             first_connection = false;
-            tostr::introduction(config.hello_message.clone(), &keypair, sink.clone()).await;
+            tostr::introduction(&config, &keypair, sink.clone()).await;
         }
 
 

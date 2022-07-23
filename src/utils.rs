@@ -5,8 +5,11 @@ const DATE_FORMAT_STR: &'static str = "%Y-%m-%d %H:%M:%S";
 
 #[derive(Clone)]
 pub struct Config {
-    pub secret: String,
+    pub name: String,
+    pub about: String,
+    pub picture_url: String,
     pub hello_message: String,
+    pub secret: String,
     pub refresh_interval_secs: u64,
     pub relay: String,
     pub max_follows: usize,
@@ -15,8 +18,11 @@ pub struct Config {
 impl std::fmt::Debug for Config {
     fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
         fmt.debug_struct("Config")
-            .field("secret", &"***")
+            .field("name", &self.name)
+            .field("about", &self.about)
+            .field("picture_url", &self.picture_url)
             .field("hello_message", &self.hello_message)
+            .field("secret", &"***")
             .field("refresh_interval_secs", &self.refresh_interval_secs)
             .field("relay", &self.relay)
             .field("max_follows", &self.max_follows)
@@ -35,6 +41,9 @@ pub fn parse_config(path: &std::path::Path) -> Config {
 
     let content = std::fs::read_to_string(path).expect("Config reading failed.");
 
+    let mut name = String::from("tostr_bot");
+    let mut about = String::from("Hi, I'm [tostr](https://github.com/slaninas/tostr) bot. Reply to me with 'add twitter_account' or 'random'");
+    let mut picture_url = String::from("https://st2.depositphotos.com/1187563/7129/i/450/depositphotos_71295829-stock-photo-old-style-photo-toast-popping.jpg");
     let mut secret = String::new();
     let mut hello_message = String::new();
     let mut refresh_interval_secs = 0;
@@ -44,10 +53,16 @@ pub fn parse_config(path: &std::path::Path) -> Config {
     for line in content.lines() {
         let line = line.to_string();
 
-        if line.starts_with("secret") {
-            secret = get_value(line);
+        if line.starts_with("name") {
+            name = get_value(line);
+        } else if line.starts_with("about") {
+            about = get_value(line);
+        } else if line.starts_with("picture_url") {
+            picture_url = get_value(line);
         } else if line.starts_with("hello_message") {
             hello_message = get_value(line);
+        } else if line.starts_with("secret") {
+            secret = get_value(line);
         } else if line.starts_with("refresh_interval_secs") {
             refresh_interval_secs = get_value(line)
                 .parse::<u64>()
@@ -59,11 +74,13 @@ pub fn parse_config(path: &std::path::Path) -> Config {
         } else if line.starts_with("#") || line.len() == 0 {
             // Ignoring comments and blank lines
         } else {
-
             warn!("Unknown config line >{}<", line);
         }
     }
 
+    assert!(name.len() > 0);
+    assert!(about.len() > 0);
+    assert!(picture_url.len() > 0);
     assert!(secret.len() > 0);
     assert!(hello_message.len() > 0);
     assert!(refresh_interval_secs > 0);
@@ -71,6 +88,9 @@ pub fn parse_config(path: &std::path::Path) -> Config {
     assert!(max_follows > 0);
 
     Config {
+        name,
+        about,
+        picture_url,
         secret,
         hello_message,
         refresh_interval_secs,

@@ -195,15 +195,21 @@ pub async fn send(msg: String, sink: Sink) {
         .unwrap();
 }
 
-pub async fn introduction(hello_message: String, keypair: &secp256k1::KeyPair, sink: Sink) {
+pub async fn introduction(config: &utils::Config, keypair: &secp256k1::KeyPair, sink: Sink) {
+    // info!("Main bot is sending set_metadata >{}<
     // Set profile
+    info!(
+        "main bot is settings name: \"{}\", about: \"{}\", picture_url: \"{}\"",
+        config.name, config.about, config.picture_url
+    );
     let event = nostr::Event::new(
         &keypair,
         utils::unix_timestamp(),
         0,
         vec![],
         format!(
-            r#"{{\"name\":\"tostr_bot\",\"about\":\"Hi, I'm [tostr](https://github.com/slaninas/tostr) bot. Reply to me with 'add twitter_account' or 'random'.\",\"picture\":\"https://st2.depositphotos.com/1187563/7129/i/450/depositphotos_71295829-stock-photo-old-style-photo-toast-popping.jpg\"}}"#,
+            r#"{{\"name\":\"{}\",\"about\":\"{}\",\"picture\":\"{}\"}}"#,
+            config.name, config.about, config.picture_url
         ),
     );
 
@@ -215,9 +221,10 @@ pub async fn introduction(hello_message: String, keypair: &secp256k1::KeyPair, s
         utils::unix_timestamp(),
         1,
         vec![],
-        hello_message,
+        config.hello_message.clone(),
     );
 
+    info!("main bot is sending message \"{}\"", config.hello_message);
     send(welcome.format(), sink.clone()).await;
 }
 
