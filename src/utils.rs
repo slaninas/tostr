@@ -227,7 +227,14 @@ async fn follow_links(tweets: &mut Vec<Tweet>) {
 
             let final_url = match request {
                 Ok(response) => response.url().as_str().to_string(),
-                Err(e) => { debug!("Failed to follow link >{}< ({}), using orignal url", link.as_str().to_string(), e); link.as_str().to_string()},
+                Err(e) => {
+                    debug!(
+                        "Failed to follow link >{}< ({}), using orignal url",
+                        link.as_str().to_string(),
+                        e
+                    );
+                    link.as_str().to_string()
+                }
             };
 
             final_tweet.push_str(&text[curr_pos..start]);
@@ -237,7 +244,10 @@ async fn follow_links(tweets: &mut Vec<Tweet>) {
 
         final_tweet.push_str(&text[curr_pos..]);
 
-        debug!("follow_links: orig. tweet >{}<, final tweet >{}<", text, final_tweet);
+        debug!(
+            "follow_links: orig. tweet >{}<, final tweet >{}<",
+            text, final_tweet
+        );
         tweet.tweet = final_tweet;
     }
 }

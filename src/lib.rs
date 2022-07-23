@@ -229,8 +229,10 @@ pub async fn introduction(config: &utils::Config, keypair: &secp256k1::KeyPair, 
 }
 
 async fn request_subscription(keypair: &secp256k1::KeyPair, sink: Sink) {
-
-    let random_string = rand::thread_rng().sample_iter(rand::distributions::Alphanumeric).take(64).collect::<Vec<_>>();
+    let random_string = rand::thread_rng()
+        .sample_iter(rand::distributions::Alphanumeric)
+        .take(64)
+        .collect::<Vec<_>>();
     let random_string = String::from_utf8(random_string).unwrap();
     // Listen for my pubkey mentions
     send(
@@ -279,10 +281,19 @@ pub async fn update_user(
     // fake_worker(username, refresh_interval_secs).await;
     // return;
 
-    let pic_cmd = format!(r#"twint --user-full -u '{}' 2>&1 | sed 's/.*Avatar: \(https.*\)/\1/' | tr -d \\n"#, username);
+    let pic_cmd = format!(
+        r#"twint --user-full -u '{}' 2>&1 | sed 's/.*Avatar: \(https.*\)/\1/' | tr -d \\n"#,
+        username
+    );
     debug!("Runnings bash -c '{}", pic_cmd);
 
-    let stdout = async_process::Command::new("bash").arg("-c").arg(pic_cmd).output().await.expect("twint command failed").stdout;
+    let stdout = async_process::Command::new("bash")
+        .arg("-c")
+        .arg(pic_cmd)
+        .output()
+        .await
+        .expect("twint command failed")
+        .stdout;
     let pic_url = String::from_utf8(stdout).unwrap();
     debug!("Found pic url {} for {}", pic_url, username);
 
@@ -318,7 +329,11 @@ pub async fn update_user(
         // in order they were published. Still the created_at field can easily be the same so in the
         // end it depends on how the relays handle it
         for tweet in new_tweets.iter().rev() {
-            send(utils::get_tweet_event(tweet).sign(&keypair).format(), sink.clone()).await;
+            send(
+                utils::get_tweet_event(tweet).sign(&keypair).format(),
+                sink.clone(),
+            )
+            .await;
         }
         // break;
     }

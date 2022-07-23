@@ -60,7 +60,6 @@ async fn main() {
 
 async fn connect(relay: &String) -> WebSocket {
     info!("Connecting to {}", relay);
-    // TODO: Enable Tls
     let (ws_stream, _response) = tokio_tungstenite::connect_async(url::Url::parse(relay).unwrap())
         .await
         .expect("Can't connect");
