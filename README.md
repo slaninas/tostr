@@ -34,6 +34,7 @@ I tested it with 40 accounts and it took almost a minute to check if there were 
 - [ ] Don't send `set_metadata` again after reconnect
 - [ ] Cleanup
 - [ ] Set timeout for connection
+- [ ] Proxy support
 - [x] ~~Use existing websocket crate instead of spawning websocat process~~
 - [x] ~~Find solution better than spawning nostril process~~
 - [x] ~~Parallelization, async?~~
