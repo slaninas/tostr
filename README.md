@@ -33,6 +33,7 @@ I tested it with 40 accounts and it took almost a minute to check if there were 
 - [ ] Error handling
 - [ ] Don't send `set_metadata` again after reconnect
 - [ ] Cleanup
+- [ ] Set timeout for connection
 - [x] ~~Use existing websocket crate instead of spawning websocat process~~
 - [x] ~~Find solution better than spawning nostril process~~
 - [x] ~~Parallelization, async?~~
