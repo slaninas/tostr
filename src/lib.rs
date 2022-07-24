@@ -74,7 +74,7 @@ async fn handle_command(
     let command = &event.content;
 
     let response = if command.starts_with("add ") {
-        Ok(handle_add(db, event, sink, &config).await)
+        Ok(handle_add(db, event, sink, config).await)
     } else if command.starts_with("random") {
         Ok(handle_random(db, event).await)
     } else {
@@ -102,7 +102,7 @@ async fn handle_random(db: simpledb::Database, event: nostr::Event) -> nostr::Ev
     nostr::EventNonSigned {
         created_at: utils::unix_timestamp(),
         kind: 1,
-        tags: tags,
+        tags,
         content: format!("Hi, random account to follow: #[{}]", mention_index),
     }
 }
@@ -115,7 +115,7 @@ async fn handle_add(
 ) -> nostr::EventNonSigned {
     let username = event.content[4..event.content.len()]
         .to_ascii_lowercase()
-        .replace("@", "");
+        .replace('@', "");
 
     if db.clone().lock().unwrap().contains_key(&username) {
         let keypair = simpledb::get_user_keypair(&username, db);
@@ -203,7 +203,7 @@ pub async fn introduction(config: &utils::Config, keypair: &secp256k1::KeyPair, 
         config.name, config.about, config.picture_url
     );
     let event = nostr::Event::new(
-        &keypair,
+        keypair,
         utils::unix_timestamp(),
         0,
         vec![],
@@ -217,7 +217,7 @@ pub async fn introduction(config: &utils::Config, keypair: &secp256k1::KeyPair, 
 
     // Say hi
     let welcome = nostr::Event::new(
-        &keypair,
+        keypair,
         utils::unix_timestamp(),
         1,
         vec![],
@@ -252,7 +252,7 @@ pub fn start_existing(db: simpledb::Database, config: &utils::Config, sink: Sink
         info!("Starting worker for username {}", username);
 
         {
-            let refresh = config.refresh_interval_secs.clone();
+            let refresh = config.refresh_interval_secs;
             let sink = sink.clone();
             tokio::spawn(async move {
                 update_user(username, &keypair, sink, refresh).await;
@@ -261,6 +261,7 @@ pub fn start_existing(db: simpledb::Database, config: &utils::Config, sink: Sink
     }
 }
 
+#[allow(dead_code)]
 async fn fake_worker(username: String, refresh_interval_secs: u64) {
     loop {
         debug!(
@@ -311,7 +312,6 @@ pub async fn update_user(
     send(event.format(), sink.clone()).await;
 
     let mut since: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
-    let mut until: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
 
     loop {
         debug!(
@@ -320,7 +320,7 @@ pub async fn update_user(
         );
         tokio::time::sleep(std::time::Duration::from_secs(refresh_interval_secs)).await;
 
-        until = std::time::SystemTime::now().into();
+        let until = std::time::SystemTime::now().into();
         let new_tweets = utils::get_new_tweets(&username, since, until).await;
         // --since seems to be inclusive and --until exclusive so this should be fine
         since = until;
@@ -330,7 +330,7 @@ pub async fn update_user(
         // end it depends on how the relays handle it
         for tweet in new_tweets.iter().rev() {
             send(
-                utils::get_tweet_event(tweet).sign(&keypair).format(),
+                utils::get_tweet_event(tweet).sign(keypair).format(),
                 sink.clone(),
             )
             .await;

@@ -1,13 +1,13 @@
 use futures_util::StreamExt;
 use log::{debug, info};
-use std::io::Write;
+
 
 type WebSocket =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 
 #[tokio::main]
 async fn main() {
-    let start = std::time::Instant::now();
+    let _start = std::time::Instant::now();
     env_logger::Builder::from_default_env()
         // .format(move |buf, rec| {
             // let t = start.elapsed().as_secs_f32();

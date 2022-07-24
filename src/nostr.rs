@@ -57,7 +57,7 @@ impl Event {
         let id =
             secp256k1::Message::from_hashed_data::<secp256k1::hashes::sha256::Hash>(msg.as_bytes());
 
-        let signature = secp.sign_schnorr(&id, &keypair);
+        let signature = secp.sign_schnorr(&id, keypair);
 
         Event {
             id: id.to_string(),
@@ -115,13 +115,11 @@ pub fn get_tags_for_reply(event: Event) -> Vec<Vec<String>> {
         }
     }
 
-    let mut tags = vec![];
-
     // Mention only author of the event
-    tags.push(vec!["p".to_string(), event.pubkey]);
+    let mut tags = vec![vec!["p".to_string(), event.pubkey]];
 
     // First event and event I'm going to reply to
-    if e_tags.len() > 0 {
+    if !e_tags.is_empty() {
         tags.push(e_tags[0].clone());
     }
     tags.push(vec!["e".to_string(), event.id]);

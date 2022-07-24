@@ -1,7 +1,7 @@
 use crate::nostr;
 use log::{debug, info, warn};
 
-const DATE_FORMAT_STR: &'static str = "%Y-%m-%d %H:%M:%S";
+const DATE_FORMAT_STR: &str = "%Y-%m-%d %H:%M:%S";
 
 #[derive(Clone)]
 pub struct Config {
@@ -71,20 +71,20 @@ pub fn parse_config(path: &std::path::Path) -> Config {
             relay = get_value(line);
         } else if line.starts_with("max_follows") {
             max_follows = get_value(line).parse::<usize>().expect("Can't parse value");
-        } else if line.starts_with("#") || line.len() == 0 {
+        } else if line.starts_with('#') || line.is_empty() {
             // Ignoring comments and blank lines
         } else {
             warn!("Unknown config line >{}<", line);
         }
     }
 
-    assert!(name.len() > 0);
-    assert!(about.len() > 0);
-    assert!(picture_url.len() > 0);
-    assert!(secret.len() > 0);
-    assert!(hello_message.len() > 0);
+    assert!(!name.is_empty());
+    assert!(!about.is_empty());
+    assert!(!picture_url.is_empty());
+    assert!(!secret.is_empty());
+    assert!(!hello_message.is_empty());
     assert!(refresh_interval_secs > 0);
-    assert!(relay.len() > 0);
+    assert!(!relay.is_empty());
     assert!(max_follows > 0);
 
     Config {
@@ -100,7 +100,6 @@ pub fn parse_config(path: &std::path::Path) -> Config {
 }
 
 pub struct Tweet {
-    username: String,
     tweet: String,
     link: String,
 }
@@ -147,8 +146,8 @@ pub async fn get_new_tweets(
 
             let csv = content.lines().collect::<Vec<_>>();
 
-            for i in 1..csv.len() {
-                let line = csv[i].split("\t").collect::<Vec<_>>();
+            for item in csv.iter().skip(1) {
+                let line = item.split('\t').collect::<Vec<_>>();
 
                 let tweet = line[10].to_string();
                 // Filter out replies
@@ -158,7 +157,6 @@ pub async fn get_new_tweets(
                 }
                 new_tweets.push(Tweet {
                     // date: format!("{} {} {}", line[3], line[4], line[5]),
-                    username: line[7].to_string(),
                     tweet,
                     link: line[20].to_string(),
                 });
@@ -178,7 +176,7 @@ pub async fn get_new_tweets(
 }
 
 pub async fn user_exists(username: &String) -> bool {
-    let mut since: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
+    let since: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
 
     let cmd = format!(
         "twint -u '{}' --since \"{}\" 1>/dev/null",
@@ -214,7 +212,7 @@ async fn follow_links(tweets: &mut Vec<Tweet>) {
 
     for tweet in tweets {
         let text = &tweet.tweet;
-        let links: Vec<_> = finder.links(&text).collect();
+        let links: Vec<_> = finder.links(text).collect();
 
         let mut curr_pos = 0;
         let mut final_tweet = String::new();
