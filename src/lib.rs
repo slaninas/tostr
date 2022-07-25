@@ -1,6 +1,8 @@
 use futures_util::sink::SinkExt;
+use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::StreamExt;
 use log::{debug, info};
+use tokio_socks::tcp::Socks5Stream;
 
 use rand::Rng;
 
@@ -10,26 +12,45 @@ pub mod nostr;
 pub mod simpledb;
 pub mod utils;
 
-type SplitSink = futures_util::stream::SplitSink<
+pub type SplitSinkClearnet = futures_util::stream::SplitSink<
     WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
     tungstenite::Message,
 >;
-type Stream = futures_util::stream::SplitStream<
+pub type Stream = futures_util::stream::SplitStream<
     WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
 >;
 
-type WrappedSink = std::sync::Arc<tokio::sync::Mutex<SplitSink>>;
+type WrappedSinkClearnet = std::sync::Arc<tokio::sync::Mutex<SplitSinkClearnet>>;
+type WrappedSinkTor = std::sync::Arc<tokio::sync::Mutex<SplitSinkTor>>;
+
+pub type SplitSinkTor = SplitSink<
+    WebSocketStream<Socks5Stream<tokio::net::TcpStream>>,
+    tokio_tungstenite::tungstenite::Message,
+>;
+pub type StreamTor = SplitStream<WebSocketStream<Socks5Stream<tokio::net::TcpStream>>>;
+
+#[derive(Clone, Debug)]
+pub enum SinkType {
+    Clearnet(WrappedSinkClearnet),
+    Tor(WrappedSinkTor),
+}
+
+#[derive(Debug)]
+pub enum StreamType {
+    Clearnet(Stream),
+    Tor(StreamTor),
+}
 
 #[derive(Clone)]
 pub struct Sink {
-    pub sink: WrappedSink,
+    pub sink: SinkType,
     pub peer_addr: String,
 }
 
 pub async fn run(
     keypair: secp256k1::KeyPair,
     sink: Sink,
-    stream: Stream,
+    stream: StreamType,
     db: simpledb::Database,
     config: utils::Config,
 ) {
@@ -37,32 +58,45 @@ pub async fn run(
 
     start_existing(db.clone(), &config, sink.clone());
 
-    let f = stream.for_each(|message| async {
-        let data = match message {
-            Ok(data) => data,
-            Err(error) => {
-                info!("Stream read failed: {}", error);
-                return;
-            }
-        };
+    let loooooop = |message: Result<tungstenite::Message, tungstenite::Error>| async {
+                let data = match message {
+                    Ok(data) => data,
+                    Err(error) => {
+                        info!("Stream read failed: {}", error);
+                        return;
+                    }
+                };
 
-        let data_str = data.to_string();
-        debug!("Got message >{}<", data_str);
+                let data_str = data.to_string();
+                debug!("Got message >{}<", data_str);
 
-        match serde_json::from_str::<nostr::Message>(&data.to_string()) {
-            Ok(message) => {
-                match handle_command(message.content, db.clone(), sink.clone(), &config).await {
-                    Ok(response) => send(response.sign(&keypair).format(), sink.clone()).await,
-                    Err(e) => debug!("{}", e),
+                match serde_json::from_str::<nostr::Message>(&data.to_string()) {
+                    Ok(message) => {
+                        match handle_command(message.content, db.clone(), sink.clone(), &config)
+                            .await
+                        {
+                            Ok(response) => {
+                                send(response.sign(&keypair).format(), sink.clone()).await
+                            }
+                            Err(e) => debug!("{}", e),
+                        }
+                    }
+                    Err(e) => {
+                        debug!("Unable to parse message: {}", e);
+                    }
                 }
-            }
-            Err(e) => {
-                debug!("Unable to parse message: {}", e);
-            }
-        }
-    });
+            };
 
-    f.await;
+    match stream {
+        StreamType::Clearnet(stream) => {
+            let f = stream.for_each(loooooop);
+            f.await;
+        }
+        StreamType::Tor(stream) => {
+            let f = stream.for_each(loooooop);
+            f.await;
+        }
+    }
 }
 
 async fn handle_command(
@@ -185,14 +219,25 @@ fn get_handle_response(event: nostr::Event, new_bot_pubkey: &str) -> nostr::Even
     }
 }
 
-pub async fn send(msg: String, sink: Sink) {
-    debug!("Sending >{}< to {}", msg, sink.peer_addr);
-    sink.sink
-        .lock()
-        .await
-        .send(tungstenite::Message::Text(msg))
-        .await
-        .unwrap();
+pub async fn send(msg: String, sink_wrap: Sink) {
+    match sink_wrap.sink {
+        SinkType::Clearnet(sink) => {
+            debug!("Sending >{}< to {} over clearnet", msg, sink_wrap.peer_addr);
+            sink.lock()
+                .await
+                .send(tungstenite::Message::Text(msg))
+                .await
+                .unwrap()
+        }
+        SinkType::Tor(sink) => {
+            debug!("Sending >{}< to {} over tor", msg, sink_wrap.peer_addr);
+            sink.lock()
+                .await
+                .send(tungstenite::Message::Text(msg))
+                .await
+                .unwrap()
+        }
+    }
 }
 
 pub async fn introduction(config: &utils::Config, keypair: &secp256k1::KeyPair, sink: Sink) {

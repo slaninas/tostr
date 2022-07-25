@@ -1,17 +1,21 @@
 use futures_util::StreamExt;
 use log::{debug, info};
-
+use tokio::{
+    net::TcpStream,
+};
+use tokio_socks::tcp::Socks5Stream;
 
 type WebSocket =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+type WebSocketTor = tokio_tungstenite::WebSocketStream<Socks5Stream<tokio::net::TcpStream>>;
 
 #[tokio::main]
 async fn main() {
     let _start = std::time::Instant::now();
     env_logger::Builder::from_default_env()
         // .format(move |buf, rec| {
-            // let t = start.elapsed().as_secs_f32();
-            // writeln!(buf, "{:.03} [{}] - {}", t, rec.level(), rec.args())
+        // let t = start.elapsed().as_secs_f32();
+        // writeln!(buf, "{:.03} [{}] - {}", t, rec.level(), rec.args())
         // })
         .init();
 
@@ -24,28 +28,25 @@ async fn main() {
     let db = tostr::simpledb::SimpleDatabase::from_file("data/users".to_string());
     let db = std::sync::Arc::new(std::sync::Mutex::new(db));
 
-
     let mut first_connection = true;
 
     // TODO: Don't send Hi message in a loop
     // Also set profiles only once when new users are created
     loop {
-        let ws_stream = connect(&config.relay).await;
-        let (sink, stream) = ws_stream.split();
+
+        // TODO: Start tor service, add iptables settings to the Dockerfile
+        let use_tor = true;
+        // let ws_stream = connect_proxy().await;
+        let (sink, stream) = get_connection(&config, use_tor).await;
 
         let secp = secp256k1::Secp256k1::new();
         let keypair = secp256k1::KeyPair::from_seckey_str(&secp, &config.secret).unwrap();
 
-        let sink = tostr::Sink {
-            sink: std::sync::Arc::new(tokio::sync::Mutex::new(sink)),
-            peer_addr: config.relay.clone(),
-        };
 
         if first_connection {
             first_connection = false;
             tostr::introduction(&config, &keypair, sink.clone()).await;
         }
-
 
         tostr::run(keypair, sink, stream, db.clone(), config.clone()).await;
 
@@ -58,10 +59,57 @@ async fn main() {
     }
 }
 
+async fn get_connection(config: &tostr::utils::Config, use_tor: bool) -> (tostr::Sink, tostr::StreamType) {
+        if use_tor {
+            let ws_stream = connect_proxy(&config.relay).await;
+            let (sink, stream) = ws_stream.split();
+            let sink = tostr::Sink {
+                sink: tostr::SinkType::Tor(std::sync::Arc::new(tokio::sync::Mutex::new(
+                    sink,
+                ))),
+                peer_addr: config.relay.clone(),
+            };
+            (sink, tostr::StreamType::Tor(stream))
+
+        } else {
+            let ws_stream = connect(&config.relay).await;
+            let (sink, stream) = ws_stream.split();
+            let sink = tostr::Sink {
+                sink: tostr::SinkType::Clearnet(std::sync::Arc::new(tokio::sync::Mutex::new(
+                    sink,
+                ))),
+                peer_addr: config.relay.clone(),
+            };
+            (sink, tostr::StreamType::Clearnet(stream))
+        }
+
+
+}
+
 async fn connect(relay: &String) -> WebSocket {
-    info!("Connecting to {}", relay);
+    info!("Connecting to {} using clearnet", relay);
     let (ws_stream, _response) = tokio_tungstenite::connect_async(url::Url::parse(relay).unwrap())
         .await
         .expect("Can't connect");
+    ws_stream
+}
+
+const TCP_PROXY_ADDR: &str = "127.0.0.1:9050";
+
+async fn connect_proxy(relay: &String) -> WebSocketTor {
+    info!("Connecting to {} using tor", relay);
+    let ws_onion_addr = relay;
+    let onion_addr = ws_onion_addr.clone();
+    let onion_addr = onion_addr.split("/").collect::<Vec<_>>()[2];
+    debug!("onion_addr >{}<", onion_addr);
+    let socket = TcpStream::connect(TCP_PROXY_ADDR).await.unwrap();
+    socket.set_nodelay(true).unwrap();
+    let conn = Socks5Stream::connect_with_socket(socket, onion_addr)
+        .await
+        .unwrap();
+
+    let (ws_stream, _response) = tokio_tungstenite::client_async(ws_onion_addr, conn)
+        .await
+        .expect("tungsten failed");
     ws_stream
 }
