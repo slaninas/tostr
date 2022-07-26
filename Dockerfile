@@ -30,14 +30,15 @@ RUN echo "HiddenServiceDir /var/lib/tor/hidden_service/\nHiddenServicePort 8080 
     chown debian-tor:debian-tor /var/lib/tor/hidden_service/ && \
     chmod 0700 /var/lib/tor/hidden_service/
 
-COPY startup_clearnet.sh startup_tor.sh /
-ARG NETWORK
-RUN if [ "$NETWORK" = "clearnet" ]; then ln -s /startup_clearnet.sh /startup.sh; elif [ "$NETWORK" = "tor" ]; then ln -s /startup_tor.sh /startup.sh; fi #else exit 1; fi
 
+COPY startup_clearnet.sh startup_tor.sh /
 COPY config Cargo.toml /app/
 COPY src /app/src
 
 RUN cd /app && cargo build --release
+
+ARG NETWORK
+RUN if [ "$NETWORK" = "clearnet" ]; then ln -s /startup_clearnet.sh /startup.sh; elif [ "$NETWORK" = "tor" ]; then ln -s /startup_tor.sh /startup.sh; else exit 1; fi
 
 # TODO: Add non-root user and use it
 ENV RUST_LOG=debug
