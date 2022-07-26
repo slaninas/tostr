@@ -9,6 +9,11 @@ type WebSocket =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 type WebSocketTor = tokio_tungstenite::WebSocketStream<Socks5Stream<tokio::net::TcpStream>>;
 
+enum Network {
+    Clearnet,
+    Tor,
+}
+
 #[tokio::main]
 async fn main() {
     let _start = std::time::Instant::now();
@@ -18,6 +23,18 @@ async fn main() {
         // writeln!(buf, "{:.03} [{}] - {}", t, rec.level(), rec.args())
         // })
         .init();
+
+    let args = std::env::args().collect::<Vec<String>>();
+    if args.len() != 2 {
+        println!("Usage: {} --clearnet|--tor", args[0]);
+        std::process::exit(1);
+    }
+    let network = match args[1].as_str() {
+        "--clearnet" => Network::Clearnet,
+        "--tor" => Network::Tor,
+        _ => panic!("Incorrect network settings"),
+    };
+
 
     let config_path = std::path::PathBuf::from("config");
     let config = tostr::utils::parse_config(&config_path);
@@ -35,9 +52,7 @@ async fn main() {
     loop {
 
         // TODO: Start tor service, add iptables settings to the Dockerfile
-        let use_tor = true;
-        // let ws_stream = connect_proxy().await;
-        let (sink, stream) = get_connection(&config, use_tor).await;
+        let (sink, stream) = get_connection(&config, &network).await;
 
         let secp = secp256k1::Secp256k1::new();
         let keypair = secp256k1::KeyPair::from_seckey_str(&secp, &config.secret).unwrap();
@@ -59,8 +74,9 @@ async fn main() {
     }
 }
 
-async fn get_connection(config: &tostr::utils::Config, use_tor: bool) -> (tostr::Sink, tostr::StreamType) {
-        if use_tor {
+async fn get_connection(config: &tostr::utils::Config, network: &Network) -> (tostr::Sink, tostr::StreamType) {
+        match network {
+            Network::Tor => {
             let ws_stream = connect_proxy(&config.relay).await;
             let (sink, stream) = ws_stream.split();
             let sink = tostr::Sink {
@@ -71,7 +87,8 @@ async fn get_connection(config: &tostr::utils::Config, use_tor: bool) -> (tostr:
             };
             (sink, tostr::StreamType::Tor(stream))
 
-        } else {
+        },
+            Network::Clearnet => {
             let ws_stream = connect(&config.relay).await;
             let (sink, stream) = ws_stream.split();
             let sink = tostr::Sink {
@@ -81,6 +98,7 @@ async fn get_connection(config: &tostr::utils::Config, use_tor: bool) -> (tostr:
                 peer_addr: config.relay.clone(),
             };
             (sink, tostr::StreamType::Clearnet(stream))
+        }
         }
 
 
