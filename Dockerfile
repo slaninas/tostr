@@ -10,12 +10,14 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 RUN apt update && apt install -y gpg wget vim git g++ python3 python3-pip expect-dev
 
 # Build twint
-# Also prevent crash when profile doesn't have url or banner url
+# Also prevent crash when profile doesn't have url or banner url and make twint use tor proxy
 RUN git clone --depth=1 https://github.com/minamotorin/twint.git && \
     cd twint && \
-    pip3 install . -r requirements.txt && \
     sed -i 's/    _usr\.url =.*/    _usr\.url = ""/'  twint/user.py  && \
-    sed -i 's/    _usr\.background_image =.*/    _usr\.background_image = ""/'  twint/user.py
+    sed -i 's/    _usr\.background_image =.*/    _usr\.background_image = ""/'  twint/user.py && \
+    sed -i "s/async with aiohttp.ClientSession(connector.*/async with aiohttp.ClientSession(connector=ProxyConnector(host='127.0.0.1', port='9050', rdns=True), headers=headers) as session:/" twint/get.py && \
+    sed -i "s/r = self._session.send(req, allow_redirects=True, timeout=self._timeout.*/r = self._session.send(req, allow_redirects=True, timeout=self._timeout, proxies={'https': 'socks5h:\/\/127.0.0.1:9050'})/" twint/token.py && \
+    pip3 install . -r requirements.txt
 
 
 
