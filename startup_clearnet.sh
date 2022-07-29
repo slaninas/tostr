@@ -2,4 +2,4 @@
 set -x
 set -e
 
-cd /app && ./target/release/tostr --clearnet
+cd /app && unbuffer ./target/release/tostr --clearnet | tee data/log
