@@ -17,5 +17,6 @@ ip6tables -P OUTPUT DROP
 
 
 service tor start
+service tor status
 
 cd /app && ./target/release/tostr --tor
