@@ -20,6 +20,9 @@ git clone https://github.com/slaninas/tostr/ && cd tostr
 Now the bot should be running and waiting for mentions. You can reply to its message with 'add twitter_username' to add new account or with 'random' to get a random user.
 It relays only new tweets that were posted after you launched it.
 
+## Tor
+In case `--tor` is used connections to both relay and Twitter *should* be going through tor. But if you need full anonymity please **check yourself there are no leaks**.
+
 
 ## Known limitations/issues
 - in `update_user` function, `since` value may not correspond to the previous `until` value (seems it breaks shortly after a new tweet is found), this may lead to tweets being forwarded twice or not at all
