@@ -341,6 +341,12 @@ pub async fn update_user(
         .expect("twint command failed")
         .stdout;
     let pic_url = String::from_utf8(stdout).unwrap();
+    let pic_url = if pic_url.starts_with("http") {
+        pic_url
+    } else {
+        info!("Unable to find picture for {}", username);
+        "".to_string()
+    };
     debug!("Found pic url {} for {}", pic_url, username);
 
     let event = nostr::Event::new(
