@@ -372,11 +372,9 @@ pub async fn update_user(
         tokio::time::sleep(std::time::Duration::from_secs(refresh_interval_secs)).await;
 
         let until = std::time::SystemTime::now().into();
-        debug!("Before tweet fetch, since: {}, until {}", since, until);
         let new_tweets = utils::get_new_tweets(&username, since, until).await;
         // --since seems to be inclusive and --until exclusive so this should be fine
         since = until;
-        debug!("After tweet fetch, since: {}, until {}", since, until);
 
         // twint returns newest tweets first, reverse the Vec here so that tweets are send to relays
         // in order they were published. Still the created_at field can easily be the same so in the

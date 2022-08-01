@@ -121,7 +121,6 @@ pub async fn get_new_tweets(
     until: chrono::DateTime<chrono::offset::Local>,
 ) -> Vec<Tweet> {
     debug!("Checking new tweets from {}", username);
-    debug!("get_new_tweets: since {} ({}), until {} ({})", since, since.format(DATE_FORMAT_STR), until, until.format(DATE_FORMAT_STR));
     let workfile = format!("{}_workfile.csv", username);
 
     let cmd = format!(
