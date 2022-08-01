@@ -34,11 +34,12 @@ I tested it with 40 accounts and it took almost a minute to check if there were 
 - ~~Tweets containing ' or " are not relayed~~
 
 ## TODOs
+- [ ] If tweets fetch fails include the time inverval from failed attempt in the next check
 - [ ] Error handling
 - [ ] Don't send `set_metadata` again after reconnect
 - [ ] Cleanup
 - [ ] Set timeout for connection
-- [ ] Proxy support
+- [x] Proxy support
 - [x] ~~Use existing websocket crate instead of spawning websocat process~~
 - [x] ~~Find solution better than spawning nostril process~~
 - [x] ~~Parallelization, async?~~
