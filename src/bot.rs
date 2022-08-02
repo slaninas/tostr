@@ -1,14 +1,14 @@
 use futures_util::StreamExt;
 use log::{debug, info};
+use std::fmt::Write;
 
 use rand::Rng;
 
-use crate::simpledb;
-use crate::utils;
-use crate::nostr;
 use crate::network;
+use crate::nostr;
+use crate::simpledb;
 use crate::twitter;
-
+use crate::utils;
 
 pub async fn run(
     keypair: secp256k1::KeyPair,
@@ -22,33 +22,31 @@ pub async fn run(
     start_existing(db.clone(), &config, sink.clone());
 
     let loooooop = |message: Result<tungstenite::Message, tungstenite::Error>| async {
-                let data = match message {
-                    Ok(data) => data,
-                    Err(error) => {
-                        info!("Stream read failed: {}", error);
-                        return;
-                    }
-                };
+        let data = match message {
+            Ok(data) => data,
+            Err(error) => {
+                info!("Stream read failed: {}", error);
+                return;
+            }
+        };
 
-                let data_str = data.to_string();
-                debug!("Got message >{}<", data_str);
+        let data_str = data.to_string();
+        debug!("Got message >{}<", data_str);
 
-                match serde_json::from_str::<nostr::Message>(&data.to_string()) {
-                    Ok(message) => {
-                        match handle_command(message.content, db.clone(), sink.clone(), &config)
-                            .await
-                        {
-                            Ok(response) => {
-                                network::send(response.sign(&keypair).format(), sink.clone()).await
-                            }
-                            Err(e) => debug!("{}", e),
-                        }
+        match serde_json::from_str::<nostr::Message>(&data.to_string()) {
+            Ok(message) => {
+                match handle_command(message.content, db.clone(), sink.clone(), &config).await {
+                    Ok(response) => {
+                        network::send(response.sign(&keypair).format(), sink.clone()).await
                     }
-                    Err(e) => {
-                        debug!("Unable to parse message: {}", e);
-                    }
+                    Err(e) => debug!("{}", e),
                 }
-            };
+            }
+            Err(e) => {
+                debug!("Unable to parse message: {}", e);
+            }
+        }
+    };
 
     match stream {
         network::StreamType::Clearnet(stream) => {
@@ -91,13 +89,13 @@ async fn handle_list(db: simpledb::Database, event: nostr::Event) -> nostr::Even
     let orig_tags_count = tags.len();
 
     let mut text = format!("Hi, I'm following {} accounts:\\n", usernames.len());
-    for (index, username) in usernames.iter().enumerate() {
-        let secret = follows.get(username.clone()).unwrap();
+    for (index, &username) in usernames.iter().enumerate() {
+        let secret = follows.get(username).unwrap();
         tags.push(vec![
             "p".to_string(),
             secret.x_only_public_key().0.to_string(),
         ]);
-        text.push_str(&format!("#[{}]\\n", index + orig_tags_count));
+        write!(text, "#[{}]\\i", index + orig_tags_count).unwrap();
     }
 
     nostr::EventNonSigned {
@@ -106,7 +104,6 @@ async fn handle_list(db: simpledb::Database, event: nostr::Event) -> nostr::Even
         tags,
         content: text,
     }
-
 }
 
 async fn handle_random(db: simpledb::Database, event: nostr::Event) -> nostr::EventNonSigned {
@@ -211,8 +208,11 @@ fn get_handle_response(event: nostr::Event, new_bot_pubkey: &str) -> nostr::Even
     }
 }
 
-
-pub async fn introduction(config: &utils::Config, keypair: &secp256k1::KeyPair, sink: network::Sink) {
+pub async fn introduction(
+    config: &utils::Config,
+    keypair: &secp256k1::KeyPair,
+    sink: network::Sink,
+) {
     // info!("Main bot is sending set_metadata >{}<
     // Set profile
     info!(

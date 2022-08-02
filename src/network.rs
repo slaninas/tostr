@@ -108,7 +108,7 @@ async fn connect_proxy(relay: &String) -> WebSocketTor {
     info!("Connecting to {} using tor", relay);
     let ws_onion_addr = relay;
     let onion_addr = ws_onion_addr.clone();
-    let onion_addr = onion_addr.split("/").collect::<Vec<_>>()[2];
+    let onion_addr = onion_addr.split('/').collect::<Vec<_>>()[2];
     debug!("onion_addr >{}<", onion_addr);
     let socket = TcpStream::connect(TCP_PROXY_ADDR).await.unwrap();
     socket.set_nodelay(true).unwrap();

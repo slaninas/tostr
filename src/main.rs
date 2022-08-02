@@ -1,11 +1,11 @@
 use log::{debug, info};
 
-mod network;
 mod bot;
-mod utils;
-mod simpledb;
+mod network;
 mod nostr;
+mod simpledb;
 mod twitter;
+mod utils;
 
 #[tokio::main]
 async fn main() {
@@ -28,7 +28,6 @@ async fn main() {
         _ => panic!("Incorrect network settings"),
     };
 
-
     let config_path = std::path::PathBuf::from("config");
     let config = utils::parse_config(&config_path);
     debug!("{:?}", config);
@@ -43,13 +42,11 @@ async fn main() {
     // TODO: Don't send Hi message in a loop
     // Also set profiles only once when new users are created
     loop {
-
         // TODO: Start tor service, add iptables settings to the Dockerfile
         let (sink, stream) = network::get_connection(&config, &network).await;
 
         let secp = secp256k1::Secp256k1::new();
         let keypair = secp256k1::KeyPair::from_seckey_str(&secp, &config.secret).unwrap();
-
 
         if first_connection {
             first_connection = false;
@@ -66,4 +63,3 @@ async fn main() {
         tokio::time::sleep(std::time::Duration::from_secs(wait_secs)).await;
     }
 }
-

@@ -2,6 +2,7 @@ use secp256k1::Secp256k1;
 
 use log::debug;
 use serde::{Deserialize, Serialize};
+use std::fmt::Write;
 
 #[derive(Serialize, Deserialize)]
 pub struct Message {
@@ -88,7 +89,7 @@ impl Event {
 
         for i in 0..tags.len() {
             let tag = &tags[i];
-            formatted.push_str(&format!(r#"["{}"]"#, tag.join(r#"", ""#)));
+            write!(formatted, r#"["{}"]"#, tag.join(r#"", ""#)).unwrap();
             if i + 1 < tags.len() {
                 formatted.push_str(", ");
             }

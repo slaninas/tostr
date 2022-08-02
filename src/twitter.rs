@@ -1,4 +1,4 @@
-use log::{debug, info, warn};
+use log::{debug, info};
 
 use crate::nostr;
 use crate::utils;

@@ -1,7 +1,4 @@
-use log::{debug, info, warn};
-
-use crate::nostr;
-use crate::twitter;
+use log::warn;
 
 #[derive(Clone)]
 pub struct Config {
@@ -111,4 +108,3 @@ pub fn get_random_keypair() -> secp256k1::KeyPair {
     let secret = secp256k1::SecretKey::new(&mut rand::thread_rng());
     secret.keypair(&secp)
 }
-
