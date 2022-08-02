@@ -40,6 +40,32 @@ pub async fn user_exists(username: &String) -> bool {
     status.success()
 }
 
+pub async fn get_pic_url(username: &String) -> String {
+    let pic_cmd = format!(
+        r#"twint --user-full -u '{}' 2>&1 | sed 's/.*Avatar: \(https.*\)/\1/' | tr -d \\n"#,
+        username
+    );
+    debug!("Runnings bash -c '{}", pic_cmd);
+
+    let stdout = async_process::Command::new("bash")
+        .arg("-c")
+        .arg(pic_cmd)
+        .output()
+        .await
+        .expect("twint command failed")
+        .stdout;
+
+    let pic_url = String::from_utf8(stdout).unwrap();
+
+    if pic_url.starts_with("http") {
+        debug!("Found pic url {} for {}", pic_url, username);
+        pic_url
+    } else {
+        info!("Unable to find picture for {}", username);
+        "".to_string()
+    }
+}
+
 pub async fn get_new_tweets(
     username: &String,
     since: chrono::DateTime<chrono::offset::Local>,

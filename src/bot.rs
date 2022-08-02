@@ -299,28 +299,7 @@ pub async fn update_user(
     // fake_worker(username, refresh_interval_secs).await;
     // return;
 
-    let pic_cmd = format!(
-        r#"twint --user-full -u '{}' 2>&1 | sed 's/.*Avatar: \(https.*\)/\1/' | tr -d \\n"#,
-        username
-    );
-    debug!("Runnings bash -c '{}", pic_cmd);
-
-    let stdout = async_process::Command::new("bash")
-        .arg("-c")
-        .arg(pic_cmd)
-        .output()
-        .await
-        .expect("twint command failed")
-        .stdout;
-    let pic_url = String::from_utf8(stdout).unwrap();
-    let pic_url = if pic_url.starts_with("http") {
-        pic_url
-    } else {
-        info!("Unable to find picture for {}", username);
-        "".to_string()
-    };
-    debug!("Found pic url {} for {}", pic_url, username);
-
+    let pic_url = twitter::get_pic_url(&username).await;
     let event = nostr::Event::new(
         keypair,
         utils::unix_timestamp(),
