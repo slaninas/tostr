@@ -17,7 +17,7 @@ git clone https://github.com/slaninas/tostr/ && cd tostr
 # Add secret to config file, choose refresh interval, relay and set limit for number of accounts
 ./build_and_run.sh --clearnet|--tor
 ```
-Now the bot should be running and waiting for mentions. You can reply to its message with 'add twitter_username' to add new account or with 'random' to get a random user.
+Now the bot should be running and waiting for mentions. You can reply to its message with 'add twitter_username' to add new account, with 'random' to get a random user or 'list' to get every followed account.
 It relays only new tweets that were posted after you launched it.
 
 ## Tor

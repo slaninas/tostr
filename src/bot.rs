@@ -74,10 +74,39 @@ async fn handle_command(
         Ok(handle_add(db, event, sink, config).await)
     } else if command.starts_with("random") {
         Ok(handle_random(db, event).await)
+    } else if command.starts_with("list") {
+        Ok(handle_list(db, event).await)
     } else {
         Err(format!("Unknown command >{}<", command))
     };
     response
+}
+
+async fn handle_list(db: simpledb::Database, event: nostr::Event) -> nostr::EventNonSigned {
+    let follows = db.lock().unwrap().get_follows();
+    let mut usernames = follows.keys().collect::<Vec<_>>();
+    usernames.sort();
+
+    let mut tags = nostr::get_tags_for_reply(event);
+    let orig_tags_count = tags.len();
+
+    let mut text = format!("Hi, I'm following {} accounts:\\n", usernames.len());
+    for (index, username) in usernames.iter().enumerate() {
+        let secret = follows.get(username.clone()).unwrap();
+        tags.push(vec![
+            "p".to_string(),
+            secret.x_only_public_key().0.to_string(),
+        ]);
+        text.push_str(&format!("#[{}]\\n", index + orig_tags_count));
+    }
+
+    nostr::EventNonSigned {
+        created_at: utils::unix_timestamp(),
+        kind: 1,
+        tags,
+        content: text,
+    }
+
 }
 
 async fn handle_random(db: simpledb::Database, event: nostr::Event) -> nostr::EventNonSigned {
