@@ -70,7 +70,7 @@ pub async fn get_new_tweets(
     username: &String,
     since: chrono::DateTime<chrono::offset::Local>,
     until: chrono::DateTime<chrono::offset::Local>,
-) -> Vec<Tweet> {
+) -> Result<Vec<Tweet>, String> {
     debug!("Checking new tweets from {}", username);
     let workfile = format!("{}_workfile.csv", username);
 
@@ -83,12 +83,16 @@ pub async fn get_new_tweets(
     );
     debug!("Running >{}<", cmd);
     // TODO: Handle status
-    let _output = async_process::Command::new("bash")
+    let output = async_process::Command::new("bash")
         .arg("-c")
         .arg(cmd)
         .status()
         .await
         .unwrap();
+
+    if !output.success() {
+        return Err(format!("Unable to check for new tweets from {}", username));
+    }
 
     let mut new_tweets = vec![];
     match std::fs::read_to_string(workfile.clone()) {
@@ -123,7 +127,7 @@ pub async fn get_new_tweets(
     // Follow links to the final destinations
     follow_links(&mut new_tweets).await;
 
-    new_tweets
+    Ok(new_tweets)
 }
 
 async fn follow_links(tweets: &mut Vec<Tweet>) {

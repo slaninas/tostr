@@ -324,18 +324,24 @@ pub async fn update_user(
 
         let until = std::time::SystemTime::now().into();
         let new_tweets = twitter::get_new_tweets(&username, since, until).await;
-        // --since seems to be inclusive and --until exclusive so this should be fine
-        since = until;
 
-        // twint returns newest tweets first, reverse the Vec here so that tweets are send to relays
-        // in order they were published. Still the created_at field can easily be the same so in the
-        // end it depends on how the relays handle it
-        for tweet in new_tweets.iter().rev() {
-            network::send(
-                twitter::get_tweet_event(tweet).sign(keypair).format(),
-                sink.clone(),
-            )
-            .await;
+        match new_tweets {
+            Ok(new_tweets) => {
+                // --since seems to be inclusive and --until exclusive so this should be fine
+                since = until;
+
+                // twint returns newest tweets first, reverse the Vec here so that tweets are send to relays
+                // in order they were published. Still the created_at field can easily be the same so in the
+                // end it depends on how the relays handle it
+                for tweet in new_tweets.iter().rev() {
+                    network::send(
+                        twitter::get_tweet_event(tweet).sign(keypair).format(),
+                        sink.clone(),
+                    )
+                    .await;
+                }
+            },
+            Err(e) => info!("{}", e),
         }
         // break;
     }
