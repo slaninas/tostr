@@ -1,6 +1,10 @@
 use log::{debug, info};
 
 mod network;
+mod bot;
+mod utils;
+mod simpledb;
+mod nostr;
 
 #[tokio::main]
 async fn main() {
@@ -25,12 +29,12 @@ async fn main() {
 
 
     let config_path = std::path::PathBuf::from("config");
-    let config = tostr::utils::parse_config(&config_path);
+    let config = utils::parse_config(&config_path);
     debug!("{:?}", config);
 
     info!("Starting bot");
     // TODO: Use tokio Mutex?
-    let db = tostr::simpledb::SimpleDatabase::from_file("data/users".to_string());
+    let db = simpledb::SimpleDatabase::from_file("data/users".to_string());
     let db = std::sync::Arc::new(std::sync::Mutex::new(db));
 
     let mut first_connection = true;
@@ -48,10 +52,10 @@ async fn main() {
 
         if first_connection {
             first_connection = false;
-            tostr::introduction(&config, &keypair, sink.clone()).await;
+            bot::introduction(&config, &keypair, sink.clone()).await;
         }
 
-        tostr::run(keypair, sink, stream, db.clone(), config.clone()).await;
+        bot::run(keypair, sink, stream, db.clone(), config.clone()).await;
 
         let wait_secs = 30;
         info!(

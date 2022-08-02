@@ -1,39 +1,95 @@
+use futures_util::sink::SinkExt;
+use futures_util::StreamExt;
 use log::{debug, info};
 use tokio_socks::tcp::Socks5Stream;
-use futures_util::StreamExt;
 
+use futures_util::stream::{SplitSink, SplitStream};
 use tokio::net::TcpStream;
+use tokio_tungstenite::WebSocketStream;
+
+use crate::utils;
+
 type WebSocket =
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
 type WebSocketTor = tokio_tungstenite::WebSocketStream<Socks5Stream<tokio::net::TcpStream>>;
+
+type SplitSinkClearnet = futures_util::stream::SplitSink<
+    WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+    tungstenite::Message,
+>;
+type Stream = futures_util::stream::SplitStream<
+    WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+>;
+
+type SplitSinkTor = SplitSink<
+    WebSocketStream<Socks5Stream<tokio::net::TcpStream>>,
+    tokio_tungstenite::tungstenite::Message,
+>;
+type StreamTor = SplitStream<WebSocketStream<Socks5Stream<tokio::net::TcpStream>>>;
+
+#[derive(Clone, Debug)]
+pub enum SinkType {
+    Clearnet(std::sync::Arc<tokio::sync::Mutex<SplitSinkClearnet>>),
+    Tor(std::sync::Arc<tokio::sync::Mutex<SplitSinkTor>>),
+}
+
+#[derive(Debug)]
+pub enum StreamType {
+    Clearnet(Stream),
+    Tor(StreamTor),
+}
+
+#[derive(Clone)]
+pub struct Sink {
+    pub sink: SinkType,
+    pub peer_addr: String,
+}
 
 pub enum Network {
     Clearnet,
     Tor,
 }
 
-pub async fn get_connection(
-    config: &tostr::utils::Config,
-    network: &Network,
-) -> (tostr::Sink, tostr::StreamType) {
+pub async fn send(msg: String, sink_wrap: Sink) {
+    match sink_wrap.sink {
+        SinkType::Clearnet(sink) => {
+            debug!("Sending >{}< to {} over clearnet", msg, sink_wrap.peer_addr);
+            sink.lock()
+                .await
+                .send(tungstenite::Message::Text(msg))
+                .await
+                .unwrap()
+        }
+        SinkType::Tor(sink) => {
+            debug!("Sending >{}< to {} over tor", msg, sink_wrap.peer_addr);
+            sink.lock()
+                .await
+                .send(tungstenite::Message::Text(msg))
+                .await
+                .unwrap()
+        }
+    }
+}
+
+pub async fn get_connection(config: &utils::Config, network: &Network) -> (Sink, StreamType) {
     match network {
         Network::Tor => {
             let ws_stream = connect_proxy(&config.relay).await;
             let (sink, stream) = ws_stream.split();
-            let sink = tostr::Sink {
-                sink: tostr::SinkType::Tor(std::sync::Arc::new(tokio::sync::Mutex::new(sink))),
+            let sink = Sink {
+                sink: SinkType::Tor(std::sync::Arc::new(tokio::sync::Mutex::new(sink))),
                 peer_addr: config.relay.clone(),
             };
-            (sink, tostr::StreamType::Tor(stream))
+            (sink, StreamType::Tor(stream))
         }
         Network::Clearnet => {
             let ws_stream = connect(&config.relay).await;
             let (sink, stream) = ws_stream.split();
-            let sink = tostr::Sink {
-                sink: tostr::SinkType::Clearnet(std::sync::Arc::new(tokio::sync::Mutex::new(sink))),
+            let sink = Sink {
+                sink: SinkType::Clearnet(std::sync::Arc::new(tokio::sync::Mutex::new(sink))),
                 peer_addr: config.relay.clone(),
             };
-            (sink, tostr::StreamType::Clearnet(stream))
+            (sink, StreamType::Clearnet(stream))
         }
     }
 }

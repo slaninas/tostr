@@ -82,9 +82,6 @@ impl Event {
             self.sig
         )
     }
-    pub fn print(&self) {
-        println!("{}", self.format());
-    }
 
     fn format_tags(tags: &Vec<Vec<String>>) -> String {
         let mut formatted = String::new();

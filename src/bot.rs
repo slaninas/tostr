@@ -1,56 +1,18 @@
-use futures_util::sink::SinkExt;
-use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::StreamExt;
 use log::{debug, info};
-use tokio_socks::tcp::Socks5Stream;
 
 use rand::Rng;
 
-use tokio_tungstenite::WebSocketStream;
+use crate::simpledb;
+use crate::utils;
+use crate::nostr;
+use crate::network;
 
-pub mod nostr;
-pub mod simpledb;
-pub mod utils;
-
-pub type SplitSinkClearnet = futures_util::stream::SplitSink<
-    WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
-    tungstenite::Message,
->;
-pub type Stream = futures_util::stream::SplitStream<
-    WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
->;
-
-type WrappedSinkClearnet = std::sync::Arc<tokio::sync::Mutex<SplitSinkClearnet>>;
-type WrappedSinkTor = std::sync::Arc<tokio::sync::Mutex<SplitSinkTor>>;
-
-pub type SplitSinkTor = SplitSink<
-    WebSocketStream<Socks5Stream<tokio::net::TcpStream>>,
-    tokio_tungstenite::tungstenite::Message,
->;
-pub type StreamTor = SplitStream<WebSocketStream<Socks5Stream<tokio::net::TcpStream>>>;
-
-#[derive(Clone, Debug)]
-pub enum SinkType {
-    Clearnet(WrappedSinkClearnet),
-    Tor(WrappedSinkTor),
-}
-
-#[derive(Debug)]
-pub enum StreamType {
-    Clearnet(Stream),
-    Tor(StreamTor),
-}
-
-#[derive(Clone)]
-pub struct Sink {
-    pub sink: SinkType,
-    pub peer_addr: String,
-}
 
 pub async fn run(
     keypair: secp256k1::KeyPair,
-    sink: Sink,
-    stream: StreamType,
+    sink: network::Sink,
+    stream: network::StreamType,
     db: simpledb::Database,
     config: utils::Config,
 ) {
@@ -76,7 +38,7 @@ pub async fn run(
                             .await
                         {
                             Ok(response) => {
-                                send(response.sign(&keypair).format(), sink.clone()).await
+                                network::send(response.sign(&keypair).format(), sink.clone()).await
                             }
                             Err(e) => debug!("{}", e),
                         }
@@ -88,11 +50,11 @@ pub async fn run(
             };
 
     match stream {
-        StreamType::Clearnet(stream) => {
+        network::StreamType::Clearnet(stream) => {
             let f = stream.for_each(loooooop);
             f.await;
         }
-        StreamType::Tor(stream) => {
+        network::StreamType::Tor(stream) => {
             let f = stream.for_each(loooooop);
             f.await;
         }
@@ -102,7 +64,7 @@ pub async fn run(
 async fn handle_command(
     event: nostr::Event,
     db: simpledb::Database,
-    sink: Sink,
+    sink: network::Sink,
     config: &utils::Config,
 ) -> Result<nostr::EventNonSigned, String> {
     let command = &event.content;
@@ -144,7 +106,7 @@ async fn handle_random(db: simpledb::Database, event: nostr::Event) -> nostr::Ev
 async fn handle_add(
     db: simpledb::Database,
     event: nostr::Event,
-    sink: Sink,
+    sink: network::Sink,
     config: &utils::Config,
 ) -> nostr::EventNonSigned {
     let username = event.content[4..event.content.len()]
@@ -219,28 +181,8 @@ fn get_handle_response(event: nostr::Event, new_bot_pubkey: &str) -> nostr::Even
     }
 }
 
-pub async fn send(msg: String, sink_wrap: Sink) {
-    match sink_wrap.sink {
-        SinkType::Clearnet(sink) => {
-            debug!("Sending >{}< to {} over clearnet", msg, sink_wrap.peer_addr);
-            sink.lock()
-                .await
-                .send(tungstenite::Message::Text(msg))
-                .await
-                .unwrap()
-        }
-        SinkType::Tor(sink) => {
-            debug!("Sending >{}< to {} over tor", msg, sink_wrap.peer_addr);
-            sink.lock()
-                .await
-                .send(tungstenite::Message::Text(msg))
-                .await
-                .unwrap()
-        }
-    }
-}
 
-pub async fn introduction(config: &utils::Config, keypair: &secp256k1::KeyPair, sink: Sink) {
+pub async fn introduction(config: &utils::Config, keypair: &secp256k1::KeyPair, sink: network::Sink) {
     // info!("Main bot is sending set_metadata >{}<
     // Set profile
     info!(
@@ -258,7 +200,7 @@ pub async fn introduction(config: &utils::Config, keypair: &secp256k1::KeyPair, 
         ),
     );
 
-    send(event.format(), sink.clone()).await;
+    network::send(event.format(), sink.clone()).await;
 
     // Say hi
     let welcome = nostr::Event::new(
@@ -270,17 +212,17 @@ pub async fn introduction(config: &utils::Config, keypair: &secp256k1::KeyPair, 
     );
 
     info!("main bot is sending message \"{}\"", config.hello_message);
-    send(welcome.format(), sink.clone()).await;
+    network::send(welcome.format(), sink.clone()).await;
 }
 
-async fn request_subscription(keypair: &secp256k1::KeyPair, sink: Sink) {
+async fn request_subscription(keypair: &secp256k1::KeyPair, sink: network::Sink) {
     let random_string = rand::thread_rng()
         .sample_iter(rand::distributions::Alphanumeric)
         .take(64)
         .collect::<Vec<_>>();
     let random_string = String::from_utf8(random_string).unwrap();
     // Listen for my pubkey mentions
-    send(
+    network::send(
         format!(
             r##"["REQ", "{}", {{"#p": ["{}"], "since": {}}} ]"##,
             random_string,
@@ -292,7 +234,7 @@ async fn request_subscription(keypair: &secp256k1::KeyPair, sink: Sink) {
     .await;
 }
 
-pub fn start_existing(db: simpledb::Database, config: &utils::Config, sink: Sink) {
+pub fn start_existing(db: simpledb::Database, config: &utils::Config, sink: network::Sink) {
     for (username, keypair) in db.lock().unwrap().get_follows() {
         info!("Starting worker for username {}", username);
 
@@ -321,7 +263,7 @@ async fn fake_worker(username: String, refresh_interval_secs: u64) {
 pub async fn update_user(
     username: String,
     keypair: &secp256k1::KeyPair,
-    sink: Sink,
+    sink: network::Sink,
     refresh_interval_secs: u64,
 ) {
     // fake_worker(username, refresh_interval_secs).await;
@@ -360,7 +302,7 @@ pub async fn update_user(
         ),
     );
 
-    send(event.format(), sink.clone()).await;
+    network::send(event.format(), sink.clone()).await;
 
     let mut since: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
 
@@ -380,7 +322,7 @@ pub async fn update_user(
         // in order they were published. Still the created_at field can easily be the same so in the
         // end it depends on how the relays handle it
         for tweet in new_tweets.iter().rev() {
-            send(
+            network::send(
                 utils::get_tweet_event(tweet).sign(keypair).format(),
                 sink.clone(),
             )
