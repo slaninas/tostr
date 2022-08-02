@@ -5,6 +5,7 @@ mod bot;
 mod utils;
 mod simpledb;
 mod nostr;
+mod twitter;
 
 #[tokio::main]
 async fn main() {

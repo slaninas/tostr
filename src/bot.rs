@@ -7,6 +7,7 @@ use crate::simpledb;
 use crate::utils;
 use crate::nostr;
 use crate::network;
+use crate::twitter;
 
 
 pub async fn run(
@@ -132,7 +133,7 @@ async fn handle_add(
         };
     }
 
-    if !utils::user_exists(&username).await {
+    if !twitter::user_exists(&username).await {
         return nostr::EventNonSigned {
             created_at: utils::unix_timestamp(),
             kind: 1,
@@ -314,7 +315,7 @@ pub async fn update_user(
         tokio::time::sleep(std::time::Duration::from_secs(refresh_interval_secs)).await;
 
         let until = std::time::SystemTime::now().into();
-        let new_tweets = utils::get_new_tweets(&username, since, until).await;
+        let new_tweets = twitter::get_new_tweets(&username, since, until).await;
         // --since seems to be inclusive and --until exclusive so this should be fine
         since = until;
 
@@ -323,7 +324,7 @@ pub async fn update_user(
         // end it depends on how the relays handle it
         for tweet in new_tweets.iter().rev() {
             network::send(
-                utils::get_tweet_event(tweet).sign(keypair).format(),
+                twitter::get_tweet_event(tweet).sign(keypair).format(),
                 sink.clone(),
             )
             .await;
