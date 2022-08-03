@@ -1,5 +1,5 @@
 use futures_util::StreamExt;
-use log::{debug, info};
+use log::{debug, info, warn};
 use std::fmt::Write;
 
 use rand::Rng;
@@ -10,6 +10,21 @@ use crate::simpledb;
 use crate::twitter;
 use crate::utils;
 
+type Receiver = tokio::sync::mpsc::Receiver<ConnectionMessage>;
+type Sender = tokio::sync::mpsc::Sender<ConnectionMessage>;
+
+#[derive(PartialEq, Debug)]
+enum ConnectionStatus {
+    Success,
+    Failed,
+}
+
+#[derive(Debug)]
+pub struct ConnectionMessage {
+    status: ConnectionStatus,
+    timestamp: std::time::SystemTime,
+}
+
 pub async fn run(
     keypair: secp256k1::KeyPair,
     sink: network::Sink,
@@ -19,9 +34,16 @@ pub async fn run(
 ) {
     request_subscription(&keypair, sink.clone()).await;
 
-    start_existing(db.clone(), &config, sink.clone());
+    let (tx, rx) = tokio::sync::mpsc::channel::<ConnectionMessage>(64);
+    start_existing(db.clone(), &config, sink.clone(), tx.clone());
 
-    let loooooop = |message: Result<tungstenite::Message, tungstenite::Error>| async {
+    let s = sink.clone();
+    tokio::spawn(async move {
+        error_listener(rx, s, keypair.clone()).await;
+    });
+
+    let listen = |message: Result<tungstenite::Message, tungstenite::Error>| async {
+        let tx = tx.clone();
         let data = match message {
             Ok(data) => data,
             Err(error) => {
@@ -35,7 +57,15 @@ pub async fn run(
 
         match serde_json::from_str::<nostr::Message>(&data.to_string()) {
             Ok(message) => {
-                match handle_command(message.content, db.clone(), sink.clone(), &config).await {
+                match handle_command(
+                    message.content,
+                    db.clone(),
+                    sink.clone(),
+                    tx.clone(),
+                    &config,
+                )
+                .await
+                {
                     Ok(response) => {
                         network::send(response.sign(&keypair).format(), sink.clone()).await
                     }
@@ -50,12 +80,77 @@ pub async fn run(
 
     match stream {
         network::StreamType::Clearnet(stream) => {
-            let f = stream.for_each(loooooop);
+            let f = stream.for_each(listen);
             f.await;
         }
         network::StreamType::Tor(stream) => {
-            let f = stream.for_each(loooooop);
+            let f = stream.for_each(listen);
             f.await;
+        }
+    }
+}
+
+async fn error_listener(mut rx: Receiver, sink: network::Sink, keypair: secp256k1::KeyPair) {
+    // If the message of the same kind as last one was received in less than this, discard it to
+    // prevent spamming
+    let discard_period = std::time::Duration::from_secs(3600);
+
+    let mut last_accepted_message = ConnectionMessage {
+        status: ConnectionStatus::Success,
+        timestamp: std::time::SystemTime::now() - discard_period,
+    };
+
+    while let Some(message) = rx.recv().await {
+        debug!("error_listener recieved {:?}", message);
+        debug!("last_accepted_message: {:?}", last_accepted_message);
+
+        let mut message_to_send = std::option::Option::<String>::None;
+
+        if message.status != last_accepted_message.status {
+            match message.status {
+                ConnectionStatus::Success => {
+                    message_to_send = Some("Connection to Twitter reestablished! :)".to_string());
+                }
+                ConnectionStatus::Failed => {
+                    message_to_send = Some("I can't connect to Twitter right now :(.".to_string());
+                }
+            }
+
+            last_accepted_message = message;
+        } else {
+            let duration_since_last_accepted = message
+                .timestamp
+                .duration_since(last_accepted_message.timestamp)
+                .unwrap();
+
+            debug!(
+                "Since last accepted message: {:?}, discard period: {:?}",
+                duration_since_last_accepted, discard_period
+            );
+
+            if duration_since_last_accepted >= discard_period {
+                match message.status {
+                    ConnectionStatus::Success => {}
+                    ConnectionStatus::Failed => {
+                        message_to_send =
+                            Some("I'm still unable to connect to Twitter :(".to_string());
+                    }
+                }
+                last_accepted_message = message;
+            }
+        }
+
+        if let Some(message_to_send) = message_to_send {
+            debug!("Message: {}", message_to_send);
+            let event = nostr::EventNonSigned {
+                created_at: utils::unix_timestamp(),
+                kind: 1,
+                tags: vec![],
+                content: message_to_send,
+            }
+            .sign(&keypair);
+
+            network::send(event.format(), sink.clone()).await;
         }
     }
 }
@@ -64,12 +159,13 @@ async fn handle_command(
     event: nostr::Event,
     db: simpledb::Database,
     sink: network::Sink,
+    tx: Sender,
     config: &utils::Config,
 ) -> Result<nostr::EventNonSigned, String> {
     let command = &event.content;
 
     let response = if command.starts_with("add ") {
-        Ok(handle_add(db, event, sink, config).await)
+        Ok(handle_add(db, event, sink, tx, config).await)
     } else if command.starts_with("random") {
         Ok(handle_random(db, event).await)
     } else if command.starts_with("list") {
@@ -134,6 +230,7 @@ async fn handle_add(
     db: simpledb::Database,
     event: nostr::Event,
     sink: network::Sink,
+    tx: Sender,
     config: &utils::Config,
 ) -> nostr::EventNonSigned {
     let username = event.content[4..event.content.len()]
@@ -185,7 +282,7 @@ async fn handle_add(
         let sink = sink.clone();
         let refresh_interval_secs = config.refresh_interval_secs;
         tokio::spawn(async move {
-            update_user(username, &keypair, sink, refresh_interval_secs).await;
+            update_user(username, &keypair, sink, tx, refresh_interval_secs).await;
         });
     }
 
@@ -264,15 +361,21 @@ async fn request_subscription(keypair: &secp256k1::KeyPair, sink: network::Sink)
     .await;
 }
 
-pub fn start_existing(db: simpledb::Database, config: &utils::Config, sink: network::Sink) {
+pub fn start_existing(
+    db: simpledb::Database,
+    config: &utils::Config,
+    sink: network::Sink,
+    tx: Sender,
+) {
     for (username, keypair) in db.lock().unwrap().get_follows() {
+        let tx = tx.clone();
         info!("Starting worker for username {}", username);
 
         {
             let refresh = config.refresh_interval_secs;
             let sink = sink.clone();
             tokio::spawn(async move {
-                update_user(username, &keypair, sink, refresh).await;
+                update_user(username, &keypair, sink, tx, refresh).await;
             });
         }
     }
@@ -294,6 +397,7 @@ pub async fn update_user(
     username: String,
     keypair: &secp256k1::KeyPair,
     sink: network::Sink,
+    tx: Sender,
     refresh_interval_secs: u64,
 ) {
     // fake_worker(username, refresh_interval_secs).await;
@@ -340,8 +444,23 @@ pub async fn update_user(
                     )
                     .await;
                 }
-            },
-            Err(e) => info!("{}", e),
+
+                tx.send(ConnectionMessage {
+                    status: ConnectionStatus::Success,
+                    timestamp: std::time::SystemTime::now(),
+                })
+                .await
+                .unwrap();
+            }
+            Err(e) => {
+                tx.send(ConnectionMessage {
+                    status: ConnectionStatus::Failed,
+                    timestamp: std::time::SystemTime::now(),
+                })
+                .await
+                .unwrap();
+                warn!("{}", e);
+            }
         }
         // break;
     }
