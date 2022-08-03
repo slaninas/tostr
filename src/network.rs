@@ -71,27 +71,43 @@ pub async fn send(msg: String, sink_wrap: Sink) {
     }
 }
 
-pub async fn get_connection(config: &utils::Config, network: &Network) -> (Sink, StreamType) {
+pub async fn get_connection(relay: &String, network: &Network) -> (Sink, StreamType) {
     match network {
         Network::Tor => {
-            let ws_stream = connect_proxy(&config.relay).await;
+            let ws_stream = connect_proxy(relay).await;
             let (sink, stream) = ws_stream.split();
             let sink = Sink {
                 sink: SinkType::Tor(std::sync::Arc::new(tokio::sync::Mutex::new(sink))),
-                peer_addr: config.relay.clone(),
+                peer_addr: relay.clone(),
             };
             (sink, StreamType::Tor(stream))
         }
         Network::Clearnet => {
-            let ws_stream = connect(&config.relay).await;
+            let ws_stream = connect(relay).await;
             let (sink, stream) = ws_stream.split();
             let sink = Sink {
                 sink: SinkType::Clearnet(std::sync::Arc::new(tokio::sync::Mutex::new(sink))),
-                peer_addr: config.relay.clone(),
+                peer_addr: relay.clone(),
             };
             (sink, StreamType::Clearnet(stream))
         }
     }
+}
+
+pub async fn get_connections(
+    config: &utils::Config,
+    network: &Network,
+) -> (Vec<Sink>, Vec<StreamType>) {
+    let mut sinks = vec![];
+    let mut streams = vec![];
+
+    for relay in &config.relays {
+        let (sink, stream) = get_connection(&relay, network).await;
+        sinks.push(sink);
+        streams.push(stream);
+    }
+
+    (sinks, streams)
 }
 
 async fn connect(relay: &String) -> WebSocket {

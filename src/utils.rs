@@ -8,7 +8,7 @@ pub struct Config {
     pub hello_message: String,
     pub secret: String,
     pub refresh_interval_secs: u64,
-    pub relay: String,
+    pub relays: Vec<String>,
     pub max_follows: usize,
 }
 
@@ -21,7 +21,7 @@ impl std::fmt::Debug for Config {
             .field("hello_message", &self.hello_message)
             .field("secret", &"***")
             .field("refresh_interval_secs", &self.refresh_interval_secs)
-            .field("relay", &self.relay)
+            .field("relays", &self.relays)
             .field("max_follows", &self.max_follows)
             .finish()
     }
@@ -44,7 +44,7 @@ pub fn parse_config(path: &std::path::Path) -> Config {
     let mut secret = String::new();
     let mut hello_message = String::new();
     let mut refresh_interval_secs = 0;
-    let mut relay = String::new();
+    let mut relays = Vec::new();
     let mut max_follows = 0;
 
     for line in content.lines() {
@@ -64,8 +64,8 @@ pub fn parse_config(path: &std::path::Path) -> Config {
             refresh_interval_secs = get_value(line)
                 .parse::<u64>()
                 .expect("Failed to parse the refresh interval.");
-        } else if line.starts_with("relay") {
-            relay = get_value(line);
+        } else if line.starts_with("addrelay") {
+            relays.push(get_value(line));
         } else if line.starts_with("max_follows") {
             max_follows = get_value(line).parse::<usize>().expect("Can't parse value");
         } else if line.starts_with('#') || line.is_empty() {
@@ -81,7 +81,7 @@ pub fn parse_config(path: &std::path::Path) -> Config {
     assert!(!secret.is_empty());
     assert!(!hello_message.is_empty());
     assert!(refresh_interval_secs > 0);
-    assert!(!relay.is_empty());
+    assert!(!relays.is_empty());
     assert!(max_follows > 0);
 
     Config {
@@ -91,7 +91,7 @@ pub fn parse_config(path: &std::path::Path) -> Config {
         secret,
         hello_message,
         refresh_interval_secs,
-        relay,
+        relays,
         max_follows,
     }
 }
