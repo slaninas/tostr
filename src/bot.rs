@@ -95,7 +95,7 @@ async fn handle_list(db: simpledb::Database, event: nostr::Event) -> nostr::Even
             "p".to_string(),
             secret.x_only_public_key().0.to_string(),
         ]);
-        write!(text, "#[{}]\\i", index + orig_tags_count).unwrap();
+        write!(text, "#[{}]\\n", index + orig_tags_count).unwrap();
     }
 
     nostr::EventNonSigned {
