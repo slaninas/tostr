@@ -101,8 +101,6 @@ async fn error_listener(mut rx: Receiver, sink: network::Sink, keypair: secp256k
     };
 
     while let Some(message) = rx.recv().await {
-        debug!("error_listener recieved {:?}", message);
-        debug!("last_accepted_message: {:?}", last_accepted_message);
 
         let mut message_to_send = std::option::Option::<String>::None;
 
@@ -141,7 +139,6 @@ async fn error_listener(mut rx: Receiver, sink: network::Sink, keypair: secp256k
         }
 
         if let Some(message_to_send) = message_to_send {
-            debug!("Message: {}", message_to_send);
             let event = nostr::EventNonSigned {
                 created_at: utils::unix_timestamp(),
                 kind: 1,
