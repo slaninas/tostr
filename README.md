@@ -24,7 +24,7 @@ It relays only new tweets that were posted after you launched it.
 - `add twitter_username`: Adds new account and returns pubkey. If account is already added, returns existing pubkey.
 - `random`: Returns pubkey for a random account the bot follows.
 - `list`: Shows list of all followed accounts.
-- `relays`: Responds with list of relays the bot is connected to at the time.
+- `relays`: Responds with list of relays the bot is currently connected to.
 
 ## Tor
 In case `--tor` is used connections to both relay and Twitter *should* be going through tor. But if you need full anonymity please **check yourself there are no leaks**.
@@ -42,7 +42,7 @@ I tested it with 40 accounts and it took almost a minute to check if there were 
 - [ ] Don't send `set_metadata` again after reconnect
 - [ ] Cleanup
 - [ ] Set timeout for connection
-- [x] Error handling
+- [x] ~~Error handling~~
 - [x] ~~If tweets fetch fails include the time inverval from failed attempt in the next check~~
 - [x] Proxy support
 - [x] ~~Use existing websocket crate instead of spawning websocat process~~
