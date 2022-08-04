@@ -40,7 +40,7 @@ pub async fn run(
 
     let s = sinks.clone();
     tokio::spawn(async move {
-        error_listener(rx, s.clone(), keypair.clone()).await;
+        error_listener(rx, s.clone(), keypair).await;
     });
 
     let (main_bot_tx, main_bot_rx) = tokio::sync::mpsc::channel::<nostr::Message>(64);
@@ -93,12 +93,12 @@ async fn main_bot_listener(
             db.clone(),
             sinks.clone(),
             error_sender.clone(),
-            &config,
+            config,
         )
         .await
         {
             Ok(response) => {
-                network::send_to_all(response.sign(&keypair).format(), sinks.clone()).await
+                network::send_to_all(response.sign(keypair).format(), sinks.clone()).await
             }
             Err(e) => debug!("{}", e),
         }
@@ -115,15 +115,15 @@ async fn listen_relay(
     let peer_addr = sink.peer_addr.clone();
 
     let network_type = match sink.clone().sink {
-        Clearnet => network::Network::Clearnet,
-        Tor => network::Network::Tor,
+        network::SinkType::Clearnet(_) => network::Network::Clearnet,
+        network::SinkType::Tor(_) => network::Network::Tor,
     };
 
     let mut stream = stream;
     let mut sink = sink;
 
     loop {
-        relay_listener(stream, sink.clone(), main_bot_tx.clone(), &main_bot_keypair).await;
+        relay_listener(stream, sink.clone(), main_bot_tx.clone(), main_bot_keypair).await;
         let wait = std::time::Duration::from_secs(30);
         warn!(
             "Connection with {} lost, I will try to reconnect in {:?}",
@@ -140,7 +140,7 @@ async fn listen_relay(
                     stream = new_stream;
                     break;
                 }
-                Err(e) => warn!(
+                Err(_) => warn!(
                     "Relay listener is unable to reconnect to {}. Will try again in {:?}",
                     peer_addr, wait
                 ),
@@ -175,7 +175,11 @@ async fn relay_listener(
                     "Sending message with event id={} to master bot",
                     message.content.id
                 );
-                main_bot_tx.send(message).await;
+                match main_bot_tx.send(message).await {
+                    Ok(_) => {}
+                    Err(e) => panic!("Error sending message to main bot: {}", e)
+
+                }
             }
             Err(e) => {
                 debug!("Unable to parse message: {}", e);
@@ -193,14 +197,6 @@ async fn relay_listener(
             f.await;
         }
     }
-}
-
-fn assign_new_connectino(
-    old_sink: network::Sink,
-    old_stream: network::Stream,
-    new_sink: network::Sink,
-    new_stream: network::Stream,
-) {
 }
 
 async fn error_listener(mut rx: Receiver, sinks: Vec<network::Sink>, keypair: secp256k1::KeyPair) {
@@ -293,7 +289,7 @@ async fn handle_relays(sinks: Vec<network::Sink>, event: nostr::Event) -> nostr:
     for sink in sinks {
         let peer_addr = sink.peer_addr.clone();
         if network::ping(sink).await {
-            write!(text, "{}\\n", peer_addr);
+            write!(text, "{}\\n", peer_addr).unwrap();
         }
     }
 

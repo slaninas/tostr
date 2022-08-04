@@ -55,12 +55,12 @@ impl Sink {
                     debug!("Updated sink");
                     *x = a;
                 }
-                SinkType::Tor(old_arc) => {
+                SinkType::Tor(_) => {
                     panic!("Trying to assing clearnet sink to tor sink.")
                 }
             },
             SinkType::Tor(new_arc) => match &self.sink {
-                SinkType::Clearnet(old_arc) => {
+                SinkType::Clearnet(_) => {
                     panic!("Trying to assing tor sink to clearnet sink.")
                 }
                 SinkType::Tor(old_arc) => {
@@ -146,6 +146,22 @@ pub async fn ping(sink_wrap: Sink) -> bool {
     }
 }
 
+pub async fn try_connect(config: &utils::Config, network: &Network) -> (Vec<Sink>, Vec<Stream>) {
+    let mut sinks = vec![];
+    let mut streams = vec![];
+
+    for relay in &config.relays {
+        let connection = get_connection(relay, network).await;
+
+        if let Ok((sink, stream)) = connection {
+            sinks.push(sink);
+            streams.push(stream);
+        }
+    }
+
+    (sinks, streams)
+}
+
 pub async fn get_connection(relay: &String, network: &Network) -> Result<(Sink, Stream), String> {
     match network {
         Network::Tor => {
@@ -194,25 +210,6 @@ pub async fn get_connection(relay: &String, network: &Network) -> Result<(Sink, 
             }
         }
     }
-}
-
-pub async fn try_connect(config: &utils::Config, network: &Network) -> (Vec<Sink>, Vec<Stream>) {
-    let mut sinks = vec![];
-    let mut streams = vec![];
-
-    for relay in &config.relays {
-        let connection = get_connection(&relay, network).await;
-
-        match connection {
-            Ok((sink, stream)) => {
-                sinks.push(sink);
-                streams.push(stream);
-            }
-            Err(e) => {}
-        }
-    }
-
-    (sinks, streams)
 }
 
 async fn connect(relay: &String) -> Result<WebSocket, tungstenite::Error> {

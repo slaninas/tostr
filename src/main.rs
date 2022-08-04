@@ -37,21 +37,16 @@ async fn main() {
     let db = simpledb::SimpleDatabase::from_file("data/users".to_string());
     let db = std::sync::Arc::new(std::sync::Mutex::new(db));
 
-    let mut first_connection = true;
-
     let (sinks, streams) = network::try_connect(&config, &network).await;
-    assert!(sinks.len() > 0 && streams.len() > 0);
+    assert!(!sinks.is_empty() && !streams.is_empty());
 
     let secp = secp256k1::Secp256k1::new();
     let keypair = secp256k1::KeyPair::from_seckey_str(&secp, &config.secret).unwrap();
 
-    if first_connection {
-        first_connection = false;
-        for sink in sinks.clone() {
-            bot::introduction(&config, &keypair, sink).await;
-        }
+    for sink in sinks.clone() {
+        bot::introduction(&config, &keypair, sink).await;
     }
 
     let handle = bot::run(keypair, sinks, streams, db.clone(), config.clone()).await;
-    handle.await;
+    handle.await.unwrap();
 }

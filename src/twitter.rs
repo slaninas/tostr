@@ -1,7 +1,6 @@
 use log::{debug, info};
 
 use crate::nostr;
-use crate::utils;
 
 const DATE_FORMAT_STR: &str = "%Y-%m-%d %H:%M:%S";
 
