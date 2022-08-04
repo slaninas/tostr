@@ -140,7 +140,10 @@ async fn listen_relay(
                     stream = new_stream;
                     break;
                 }
-                Err(e) => warn!("Relay listener is unable to reconnect to {}. Will try again in {:?}", peer_addr, wait),
+                Err(e) => warn!(
+                    "Relay listener is unable to reconnect to {}. Will try again in {:?}",
+                    peer_addr, wait
+                ),
             }
         }
     }
@@ -301,7 +304,6 @@ async fn handle_relays(sinks: Vec<network::Sink>, event: nostr::Event) -> nostr:
         tags,
         content: text,
     }
-
 }
 
 async fn handle_list(db: simpledb::Database, event: nostr::Event) -> nostr::EventNonSigned {
