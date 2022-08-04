@@ -276,10 +276,32 @@ async fn handle_command(
         Ok(handle_random(db, event).await)
     } else if command.starts_with("list") {
         Ok(handle_list(db, event).await)
+    } else if command.starts_with("relays") {
+        Ok(handle_relays(sinks.clone(), event).await)
     } else {
         Err(format!("Unknown command >{}<", command))
     };
     response
+}
+
+async fn handle_relays(sinks: Vec<network::Sink>, event: nostr::Event) -> nostr::EventNonSigned {
+    let mut text = "Right now I'm connected to these relays:\\n".to_string();
+
+    for sink in sinks {
+        let peer_addr = sink.peer_addr.clone();
+        if network::ping(sink).await {
+            write!(text, "{}\\n", peer_addr);
+        }
+    }
+
+    let tags = nostr::get_tags_for_reply(event);
+    nostr::EventNonSigned {
+        created_at: utils::unix_timestamp(),
+        kind: 1,
+        tags,
+        content: text,
+    }
+
 }
 
 async fn handle_list(db: simpledb::Database, event: nostr::Event) -> nostr::EventNonSigned {

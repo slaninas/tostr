@@ -116,6 +116,33 @@ pub async fn send(msg: String, sink_wrap: Sink) {
     }
 }
 
+pub async fn ping(sink_wrap: Sink) -> bool {
+    let msg = "ping".to_string();
+    let result = match sink_wrap.sink {
+        SinkType::Clearnet(sink) => {
+            debug!("Sending >{}< to {} over clearnet", msg, sink_wrap.peer_addr);
+            sink.lock()
+                .await
+                .send(tungstenite::Message::Text(msg))
+                .await
+        }
+        SinkType::Tor(sink) => {
+            debug!("Sending >{}< to {} over tor", msg, sink_wrap.peer_addr);
+            sink.lock()
+                .await
+                .send(tungstenite::Message::Text(msg))
+                .await
+        }
+    };
+
+    match result {
+        Ok(_) => true,
+        // relay_listener is handling the connection and warns when the connection is lost so debug
+        // is sufficient here, no need to use warn!
+        Err(e) => {debug!("Unable to send message to {}: {}", sink_wrap.peer_addr, e); false}
+    }
+}
+
 pub async fn get_connection(relay: &String, network: &Network) -> Result<(Sink, Stream), String> {
     match network {
         Network::Tor => {
