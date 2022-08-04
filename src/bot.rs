@@ -177,8 +177,7 @@ async fn relay_listener(
                 );
                 match main_bot_tx.send(message).await {
                     Ok(_) => {}
-                    Err(e) => panic!("Error sending message to main bot: {}", e)
-
+                    Err(e) => panic!("Error sending message to main bot: {}", e),
                 }
             }
             Err(e) => {
@@ -330,6 +329,18 @@ async fn handle_list(db: simpledb::Database, event: nostr::Event) -> nostr::Even
 
 async fn handle_random(db: simpledb::Database, event: nostr::Event) -> nostr::EventNonSigned {
     let follows = db.lock().unwrap().get_follows();
+
+    if follows.is_empty() {
+        return nostr::EventNonSigned {
+            created_at: utils::unix_timestamp(),
+            kind: 1,
+            tags: nostr::get_tags_for_reply(event),
+            content: format!(
+                "Hi, there are no accounts. Try to add some using 'add twitter_username' command."
+            ),
+        };
+    }
+
     let index = rand::thread_rng().gen_range(0..follows.len());
 
     let random_username = follows.keys().collect::<Vec<_>>()[index];
