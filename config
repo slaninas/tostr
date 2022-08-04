@@ -6,7 +6,7 @@ secret=
 # Main bot profile info
 name=tostr_bot_testing
 about="Hi, I'm [tostr](https://github.com/slaninas/tostr) bot. Reply to me with 'add twitter_username', 'list', 'random' or 'relays'"
-picture_url=https://mir-s3-cdn-cf.behance.net/project_modules/max_1200/7a3ec529632909.55fc107b84b8c.png
+picture_url=https://st2.depositphotos.com/1187563/7129/i/450/depositphotos_71295829-stock-photo-old-style-photo-toast-popping.jpg
 
 # Message bot will send when starting
 hello_message="Hi, I'm [tostr](https://github.com/slaninas/tostr/) bot. Reply to me with 'add twitter_username', 'list', 'random' or 'relays'."
