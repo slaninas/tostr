@@ -153,7 +153,6 @@ async fn relay_listener(
     main_bot_keypair: &secp256k1::KeyPair,
 ) {
     request_subscription(main_bot_keypair, sink.clone()).await;
-    // TODO: Do this on loop and handle reconnections
 
     let listen = |message: Result<tungstenite::Message, tungstenite::Error>| async {
         let data = match message {
