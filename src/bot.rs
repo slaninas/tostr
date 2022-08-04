@@ -13,6 +13,9 @@ use crate::utils;
 type Receiver = tokio::sync::mpsc::Receiver<ConnectionMessage>;
 type Sender = tokio::sync::mpsc::Sender<ConnectionMessage>;
 
+type NostrMessageReceiver = tokio::sync::mpsc::Receiver<nostr::Message>;
+type NostrMessageSender = tokio::sync::mpsc::Sender<nostr::Message>;
+
 #[derive(PartialEq, Debug)]
 enum ConnectionStatus {
     Success,
@@ -27,23 +30,132 @@ pub struct ConnectionMessage {
 
 pub async fn run(
     keypair: secp256k1::KeyPair,
-    sink: network::Sink,
-    stream: network::StreamType,
+    sinks: Vec<network::Sink>,
+    streams: Vec<network::Stream>,
     db: simpledb::Database,
     config: utils::Config,
-) {
-    request_subscription(&keypair, sink.clone()).await;
-
+) -> tokio::task::JoinHandle<()> {
     let (tx, rx) = tokio::sync::mpsc::channel::<ConnectionMessage>(64);
-    start_existing(db.clone(), &config, sink.clone(), tx.clone());
+    start_existing(db.clone(), &config, sinks.clone(), tx.clone());
 
-    let s = sink.clone();
+    let s = sinks.clone();
     tokio::spawn(async move {
-        error_listener(rx, s, keypair.clone()).await;
+        error_listener(rx, s.clone(), keypair.clone()).await;
     });
 
+    let (main_bot_tx, main_bot_rx) = tokio::sync::mpsc::channel::<nostr::Message>(64);
+
+    for (id, stream) in streams.into_iter().enumerate() {
+        let sink = sinks[id].clone();
+        let main_bot_tx = main_bot_tx.clone();
+        tokio::spawn(async move {
+            listen_relay(stream, sink, main_bot_tx, &keypair).await;
+        });
+    }
+
+    tokio::spawn(async move {
+        main_bot_listener(
+            db.clone(),
+            sinks,
+            tx.clone(),
+            main_bot_rx,
+            &keypair,
+            &config,
+        )
+        .await;
+    })
+}
+
+async fn main_bot_listener(
+    db: simpledb::Database,
+    sinks: Vec<network::Sink>,
+    error_sender: Sender,
+    mut rx: NostrMessageReceiver,
+    keypair: &secp256k1::KeyPair,
+    config: &utils::Config,
+) {
+    let mut handled_events = std::collections::HashSet::new();
+
+    info!("Main bot listener started.");
+    while let Some(message) = rx.recv().await {
+        let event_id = message.content.id.clone();
+        if handled_events.contains(&event_id) {
+            debug!("Event with id={} already handled, ignoring.", event_id);
+            continue;
+        }
+
+        handled_events.insert(event_id);
+
+        let error_sender = error_sender.clone();
+
+        match handle_command(
+            message.content,
+            db.clone(),
+            sinks.clone(),
+            error_sender.clone(),
+            &config,
+        )
+        .await
+        {
+            Ok(response) => {
+                network::send_to_all(response.sign(&keypair).format(), sinks.clone()).await
+            }
+            Err(e) => debug!("{}", e),
+        }
+    }
+}
+
+async fn listen_relay(
+    stream: network::Stream,
+    sink: network::Sink,
+    main_bot_tx: NostrMessageSender,
+    main_bot_keypair: &secp256k1::KeyPair,
+) {
+    info!("Relay listener for {} started.", sink.peer_addr);
+    let peer_addr = sink.peer_addr.clone();
+
+    let network_type = match sink.clone().sink {
+        Clearnet => network::Network::Clearnet,
+        Tor => network::Network::Tor,
+    };
+
+    let mut stream = stream;
+    let mut sink = sink;
+
+    loop {
+        relay_listener(stream, sink.clone(), main_bot_tx.clone(), &main_bot_keypair).await;
+        let wait = std::time::Duration::from_secs(30);
+        warn!(
+            "Connection with {} lost, I will try to reconnect in {:?}",
+            peer_addr, wait
+        );
+
+        // Reconnect
+        loop {
+            tokio::time::sleep(wait).await;
+            let connection = network::get_connection(&peer_addr, &network_type).await;
+            match connection {
+                Ok((new_sink, new_stream)) => {
+                    sink.update(new_sink.sink).await;
+                    stream = new_stream;
+                    break;
+                }
+                Err(e) => warn!("Relay listener is unable to reconnect to {}. Will try again in {:?}", peer_addr, wait),
+            }
+        }
+    }
+}
+
+async fn relay_listener(
+    stream: network::Stream,
+    sink: network::Sink,
+    main_bot_tx: NostrMessageSender,
+    main_bot_keypair: &secp256k1::KeyPair,
+) {
+    request_subscription(main_bot_keypair, sink.clone()).await;
+    // TODO: Do this on loop and handle reconnections
+
     let listen = |message: Result<tungstenite::Message, tungstenite::Error>| async {
-        let tx = tx.clone();
         let data = match message {
             Ok(data) => data,
             Err(error) => {
@@ -53,24 +165,15 @@ pub async fn run(
         };
 
         let data_str = data.to_string();
-        debug!("Got message >{}<", data_str);
+        debug!("Got message >{}< from {}.", data_str, stream.peer_addr);
 
         match serde_json::from_str::<nostr::Message>(&data.to_string()) {
             Ok(message) => {
-                match handle_command(
-                    message.content,
-                    db.clone(),
-                    sink.clone(),
-                    tx.clone(),
-                    &config,
-                )
-                .await
-                {
-                    Ok(response) => {
-                        network::send(response.sign(&keypair).format(), sink.clone()).await
-                    }
-                    Err(e) => debug!("{}", e),
-                }
+                debug!(
+                    "Sending message with event id={} to master bot",
+                    message.content.id
+                );
+                main_bot_tx.send(message).await;
             }
             Err(e) => {
                 debug!("Unable to parse message: {}", e);
@@ -78,7 +181,7 @@ pub async fn run(
         }
     };
 
-    match stream {
+    match stream.stream {
         network::StreamType::Clearnet(stream) => {
             let f = stream.for_each(listen);
             f.await;
@@ -90,7 +193,15 @@ pub async fn run(
     }
 }
 
-async fn error_listener(mut rx: Receiver, sink: network::Sink, keypair: secp256k1::KeyPair) {
+fn assign_new_connectino(
+    old_sink: network::Sink,
+    old_stream: network::Stream,
+    new_sink: network::Sink,
+    new_stream: network::Stream,
+) {
+}
+
+async fn error_listener(mut rx: Receiver, sinks: Vec<network::Sink>, keypair: secp256k1::KeyPair) {
     // If the message of the same kind as last one was received in less than this, discard it to
     // prevent spamming
     let discard_period = std::time::Duration::from_secs(3600);
@@ -101,7 +212,6 @@ async fn error_listener(mut rx: Receiver, sink: network::Sink, keypair: secp256k
     };
 
     while let Some(message) = rx.recv().await {
-
         let mut message_to_send = std::option::Option::<String>::None;
 
         if message.status != last_accepted_message.status {
@@ -147,7 +257,7 @@ async fn error_listener(mut rx: Receiver, sink: network::Sink, keypair: secp256k
             }
             .sign(&keypair);
 
-            network::send(event.format(), sink.clone()).await;
+            network::send_to_all(event.format(), sinks.clone()).await;
         }
     }
 }
@@ -155,14 +265,14 @@ async fn error_listener(mut rx: Receiver, sink: network::Sink, keypair: secp256k
 async fn handle_command(
     event: nostr::Event,
     db: simpledb::Database,
-    sink: network::Sink,
+    sinks: Vec<network::Sink>,
     tx: Sender,
     config: &utils::Config,
 ) -> Result<nostr::EventNonSigned, String> {
     let command = &event.content;
 
     let response = if command.starts_with("add ") {
-        Ok(handle_add(db, event, sink, tx, config).await)
+        Ok(handle_add(db, event, sinks, tx, config).await)
     } else if command.starts_with("random") {
         Ok(handle_random(db, event).await)
     } else if command.starts_with("list") {
@@ -226,7 +336,7 @@ async fn handle_random(db: simpledb::Database, event: nostr::Event) -> nostr::Ev
 async fn handle_add(
     db: simpledb::Database,
     event: nostr::Event,
-    sink: network::Sink,
+    sinks: Vec<network::Sink>,
     tx: Sender,
     config: &utils::Config,
 ) -> nostr::EventNonSigned {
@@ -276,10 +386,10 @@ async fn handle_add(
     );
 
     {
-        let sink = sink.clone();
+        let sinks = sinks.clone();
         let refresh_interval_secs = config.refresh_interval_secs;
         tokio::spawn(async move {
-            update_user(username, &keypair, sink, tx, refresh_interval_secs).await;
+            update_user(username, &keypair, sinks, tx, refresh_interval_secs).await;
         });
     }
 
@@ -361,7 +471,7 @@ async fn request_subscription(keypair: &secp256k1::KeyPair, sink: network::Sink)
 pub fn start_existing(
     db: simpledb::Database,
     config: &utils::Config,
-    sink: network::Sink,
+    sinks: Vec<network::Sink>,
     tx: Sender,
 ) {
     for (username, keypair) in db.lock().unwrap().get_follows() {
@@ -370,9 +480,9 @@ pub fn start_existing(
 
         {
             let refresh = config.refresh_interval_secs;
-            let sink = sink.clone();
+            let sinks = sinks.clone();
             tokio::spawn(async move {
-                update_user(username, &keypair, sink, tx, refresh).await;
+                update_user(username, &keypair, sinks, tx, refresh).await;
             });
         }
     }
@@ -393,7 +503,7 @@ async fn fake_worker(username: String, refresh_interval_secs: u64) {
 pub async fn update_user(
     username: String,
     keypair: &secp256k1::KeyPair,
-    sink: network::Sink,
+    sinks: Vec<network::Sink>,
     tx: Sender,
     refresh_interval_secs: u64,
 ) {
@@ -412,7 +522,7 @@ pub async fn update_user(
         ),
     );
 
-    network::send(event.format(), sink.clone()).await;
+    network::send_to_all(event.format(), sinks.clone()).await;
 
     let mut since: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
 
@@ -435,9 +545,9 @@ pub async fn update_user(
                 // in order they were published. Still the created_at field can easily be the same so in the
                 // end it depends on how the relays handle it
                 for tweet in new_tweets.iter().rev() {
-                    network::send(
+                    network::send_to_all(
                         twitter::get_tweet_event(tweet).sign(keypair).format(),
-                        sink.clone(),
+                        sinks.clone(),
                     )
                     .await;
                 }

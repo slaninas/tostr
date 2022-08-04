@@ -41,25 +41,21 @@ async fn main() {
 
     // TODO: Don't send Hi message in a loop
     // Also set profiles only once when new users are created
-    loop {
         // TODO: Start tor service, add iptables settings to the Dockerfile
-        let (sink, stream) = network::get_connection(&config.relays[0], &network).await;
+        let (sinks, streams) = network::try_connect(&config, &network).await;
+        assert!(sinks.len() > 0 && streams.len() > 0);
 
         let secp = secp256k1::Secp256k1::new();
         let keypair = secp256k1::KeyPair::from_seckey_str(&secp, &config.secret).unwrap();
 
         if first_connection {
             first_connection = false;
-            bot::introduction(&config, &keypair, sink.clone()).await;
+            for sink in sinks.clone() {
+                bot::introduction(&config, &keypair, sink).await;
+            }
         }
 
-        bot::run(keypair, sink, stream, db.clone(), config.clone()).await;
+        let handle = bot::run(keypair, sinks, streams, db.clone(), config.clone()).await;
+        handle.await;
 
-        let wait_secs = 30;
-        info!(
-            "Connection lost. Will try to reconnect in {} seconds",
-            wait_secs
-        );
-        tokio::time::sleep(std::time::Duration::from_secs(wait_secs)).await;
-    }
 }
