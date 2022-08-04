@@ -38,9 +38,9 @@ pub fn parse_config(path: &std::path::Path) -> Config {
 
     let content = std::fs::read_to_string(path).expect("Config reading failed.");
 
-    let mut name = String::from("tostr_bot");
-    let mut about = String::from("Hi, I'm [tostr](https://github.com/slaninas/tostr) bot. Reply to me with 'add twitter_account' or 'random'");
-    let mut picture_url = String::from("https://st2.depositphotos.com/1187563/7129/i/450/depositphotos_71295829-stock-photo-old-style-photo-toast-popping.jpg");
+    let mut name = String::from("");
+    let mut about = String::from("");
+    let mut picture_url = String::from("");
     let mut secret = String::new();
     let mut hello_message = String::new();
     let mut refresh_interval_secs = 0;
