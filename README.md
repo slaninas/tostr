@@ -20,7 +20,7 @@ git clone https://github.com/slaninas/tostr/ && cd tostr
 Now the bot should be running and waiting for mentions. Just reply to its message to interact, see [Commands](#Commands).
 It relays only new tweets that were posted after you launched it.
 
-# Commands
+## Commands
 - `add twitter_username`: Adds new account and returns pubkey. If account is already added, returns existing pubkey.
 - `random`: Returns pubkey for a random account the bot follows.
 - `list`: Shows list of all followed accounts.
