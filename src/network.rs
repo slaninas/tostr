@@ -139,7 +139,10 @@ pub async fn ping(sink_wrap: Sink) -> bool {
         Ok(_) => true,
         // relay_listener is handling the connection and warns when the connection is lost so debug
         // is sufficient here, no need to use warn!
-        Err(e) => {debug!("Unable to send message to {}: {}", sink_wrap.peer_addr, e); false}
+        Err(e) => {
+            debug!("Unable to send message to {}: {}", sink_wrap.peer_addr, e);
+            false
+        }
     }
 }
 
