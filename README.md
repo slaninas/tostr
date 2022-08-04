@@ -9,20 +9,25 @@ You can interact with it using 'add twitter_username' or 'random' commands.
 
 ## How it works
 It uses [twint](https://github.com/minamotorin/twint.git) to get the tweets, making nostr events from them which are signed using
-[secp256k1](https://crates.io/crates/secp256k1) and send to relays using [tokio_tungstenite](https://crates.io/crates/tokio-tungstenite).
+[secp256k1](https://crates.io/crates/secp256k1) and communicates with relays using [tokio_tungstenite](https://crates.io/crates/tokio-tungstenite).
 
 ## How to run
 ```
 git clone https://github.com/slaninas/tostr/ && cd tostr
-# Add secret to config file, choose refresh interval, relay and set limit for number of accounts
-./build_and_run.sh --clearnet|--tor
+# Add secret to config file, choose refresh interval, relays and set limit for number of accounts
+./build_and_run.sh --clearnet|tor
 ```
-Now the bot should be running and waiting for mentions. You can reply to its message with 'add twitter_username' to add new account, with 'random' to get a random user or 'list' to get every followed account.
+Now the bot should be running and waiting for mentions. Just reply to its message to interact, see [Commands](#Commands).
 It relays only new tweets that were posted after you launched it.
+
+# Commands
+- `add twitter_username`: Adds new account and returns pubkey. If account is already added, returns existing pubkey.
+- `random`: Returns pubkey for a random account the bot follows.
+- `list`: Shows list of all followed accounts.
+- `relays`: Responds with list of relays the bot is connected to at the time.
 
 ## Tor
 In case `--tor` is used connections to both relay and Twitter *should* be going through tor. But if you need full anonymity please **check yourself there are no leaks**.
-
 
 ## Known limitations/issues
 - in `update_user` function, `since` value may not correspond to the previous `until` value (seems it breaks shortly after a new tweet is found), this may lead to tweets being forwarded twice or not at all
@@ -34,10 +39,10 @@ I tested it with 40 accounts and it took almost a minute to check if there were 
 - ~~Tweets containing ' or " are not relayed~~
 
 ## TODOs
-- [ ] Error handling
 - [ ] Don't send `set_metadata` again after reconnect
 - [ ] Cleanup
 - [ ] Set timeout for connection
+- [x] Error handling
 - [x] ~~If tweets fetch fails include the time inverval from failed attempt in the next check~~
 - [x] Proxy support
 - [x] ~~Use existing websocket crate instead of spawning websocat process~~
