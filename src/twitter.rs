@@ -6,6 +6,7 @@ use crate::utils;
 const DATE_FORMAT_STR: &str = "%Y-%m-%d %H:%M:%S";
 
 pub struct Tweet {
+    timestamp: u64,
     tweet: String,
     link: String,
 }
@@ -14,7 +15,7 @@ pub fn get_tweet_event(tweet: &Tweet) -> nostr::EventNonSigned {
     let formatted = format!("{} ([source]({}))", tweet.tweet, tweet.link);
 
     nostr::EventNonSigned {
-        created_at: utils::unix_timestamp(),
+        created_at: tweet.timestamp,
         kind: 1,
         tags: vec![],
         content: formatted,
@@ -73,6 +74,7 @@ pub async fn get_new_tweets(
 ) -> Result<Vec<Tweet>, String> {
     debug!("Checking new tweets from {}", username);
     let workfile = format!("{}_workfile.csv", username);
+    let twint_date_format = "%Y-%m-%d %T %z";
 
     let cmd = format!(
         "twint -u '{}' --since \"{}\" --until \"{}\" --csv -o {} 1>/dev/null",
@@ -110,8 +112,15 @@ pub async fn get_new_tweets(
                     debug!("Ignoring reply >{}< from {}", tweet, username);
                     continue;
                 }
+
+                let timestamp = chrono::DateTime::parse_from_str(
+                    &format!("{} {} {}", line[3], line[4], line[5]),
+                    twint_date_format,
+                )
+                .unwrap()
+                .timestamp() as u64;
                 new_tweets.push(Tweet {
-                    // date: format!("{} {} {}", line[3], line[4], line[5]),
+                    timestamp,
                     tweet,
                     link: line[20].to_string(),
                 });
