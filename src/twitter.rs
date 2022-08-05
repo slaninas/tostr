@@ -1,6 +1,6 @@
 use log::{debug, info};
 
-use crate::nostr;
+use crate::{nostr, utils};
 
 const DATE_FORMAT_STR: &str = "%Y-%m-%d %H:%M:%S";
 
@@ -14,9 +14,9 @@ pub fn get_tweet_event(tweet: &Tweet) -> nostr::EventNonSigned {
     let formatted = format!("{} ([source]({}))", tweet.tweet, tweet.link);
 
     nostr::EventNonSigned {
-        created_at: tweet.timestamp,
+        created_at: utils::unix_timestamp(),
         kind: 1,
-        tags: vec![],
+        tags: vec![vec!["tweet_timestamp".to_string(), format!("{}", tweet.timestamp)]],
         content: formatted,
     }
 }
