@@ -39,6 +39,8 @@ I tested it with 40 accounts and it took almost a minute to check if there were 
 - ~~Tweets containing ' or " are not relayed~~
 
 ## TODOs
+- [ ] After reconnection to relay, request events that were send when disconnected
+- [ ] Check the relay's response after sending subscription request
 - [ ] Better handling of handled event ids (add timestamp, remove old ones)
 - [ ] Don't send `set_metadata` again after reconnect
 - [ ] Cleanup
