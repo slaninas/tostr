@@ -2,7 +2,6 @@ use log::{debug, info};
 use nostr_bot::FunctorType;
 
 mod bot;
-mod nostr;
 mod simpledb;
 mod twitter;
 mod utils;
@@ -29,8 +28,6 @@ async fn main() {
     debug!("{:?}", config);
 
     info!("Starting bot");
-    let db = simpledb::SimpleDatabase::from_file("data/users".to_string());
-    let db = std::sync::Arc::new(std::sync::Mutex::new(db));
 
     let secp = secp256k1::Secp256k1::new();
     let keypair = secp256k1::KeyPair::from_seckey_str(&secp, &config.secret).unwrap();

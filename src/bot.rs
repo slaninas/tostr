@@ -1,19 +1,14 @@
-use futures_util::StreamExt;
 use log::{debug, info, warn};
 use std::fmt::Write;
 
 use rand::Rng;
 
-use crate::nostr;
 use crate::simpledb;
 use crate::twitter;
 use crate::utils;
 
 type Receiver = tokio::sync::mpsc::Receiver<ConnectionMessage>;
 type ErrorSender = tokio::sync::mpsc::Sender<ConnectionMessage>;
-
-type NostrMessageReceiver = tokio::sync::mpsc::Receiver<nostr::Message>;
-type NostrMessageSender = tokio::sync::mpsc::Sender<nostr::Message>;
 
 #[derive(PartialEq, Debug)]
 enum ConnectionStatus {
@@ -88,7 +83,7 @@ pub async fn error_listener(
         }
 
         if let Some(message_to_send) = message_to_send {
-            let event = nostr::EventNonSigned {
+            let event = nostr_bot::EventNonSigned {
                 created_at: utils::unix_timestamp(),
                 kind: 1,
                 tags: vec![],
@@ -103,7 +98,7 @@ pub async fn error_listener(
 
 pub async fn handle_relays(
     event: nostr_bot::Event,
-    state: nostr_bot::State<crate::MyState>,
+    _state: nostr_bot::State<crate::MyState>,
     bot: nostr_bot::BotInfo,
 ) -> nostr_bot::EventNonSigned {
     let mut text = "Right now I'm connected to these relays:\n".to_string();
@@ -124,17 +119,7 @@ pub async fn handle_list(
     let mut usernames = follows.keys().collect::<Vec<_>>();
     usernames.sort();
 
-    // TODO: Remove translation
-    let event_orig = nostr::Event {
-        id: event.id,
-        pubkey: event.pubkey,
-        created_at: event.created_at,
-        kind: event.kind,
-        tags: event.tags,
-        content: event.content,
-        sig: event.sig,
-    };
-    let mut tags = nostr::get_tags_for_reply(event_orig);
+    let mut tags = nostr_bot::tags_for_reply(event);
     let orig_tags_count = tags.len();
 
     let mut text = format!("Hi, I'm following {} accounts:\n", usernames.len());
@@ -176,18 +161,7 @@ pub async fn handle_random(
 
     let secret = follows.get(random_username).unwrap();
 
-    // TODO: Remove translation
-    let event_orig = nostr::Event {
-        id: event.id,
-        pubkey: event.pubkey,
-        created_at: event.created_at,
-        kind: event.kind,
-        tags: event.tags,
-        content: event.content,
-        sig: event.sig,
-    };
-
-    let mut tags = nostr::get_tags_for_reply(event_orig);
+    let mut tags = nostr_bot::tags_for_reply(event);
     tags.push(vec![
         "p".to_string(),
         secret.x_only_public_key().0.to_string(),
@@ -262,18 +236,8 @@ pub async fn handle_add(
 }
 
 fn get_handle_response(event: nostr_bot::Event, new_bot_pubkey: &str) -> nostr_bot::EventNonSigned {
-    // TODO: Remove translation
-    let event_orig = nostr::Event {
-        id: event.id,
-        pubkey: event.pubkey,
-        created_at: event.created_at,
-        kind: event.kind,
-        tags: event.tags,
-        content: event.content,
-        sig: event.sig,
-    };
 
-    let mut all_tags = nostr::get_tags_for_reply(event_orig);
+    let mut all_tags = nostr_bot::tags_for_reply(event);
     all_tags.push(vec!["p".to_string(), new_bot_pubkey.to_string()]);
     let last_tag_position = all_tags.len() - 1;
 
@@ -331,7 +295,7 @@ pub async fn update_user(
     // return;
 
     let pic_url = twitter::get_pic_url(&username).await;
-    let event = nostr::Event::new(
+    let event = nostr_bot::Event::new(
         keypair,
         utils::unix_timestamp(),
         0,
