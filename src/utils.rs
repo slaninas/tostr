@@ -8,7 +8,7 @@ pub struct Config {
     pub hello_message: String,
     pub secret: String,
     pub refresh_interval_secs: u64,
-    pub relays: Vec<String>,
+    pub relays: Vec<url::Url>,
     pub max_follows: usize,
 }
 
@@ -65,7 +65,7 @@ pub fn parse_config(path: &std::path::Path) -> Config {
                 .parse::<u64>()
                 .expect("Failed to parse the refresh interval.");
         } else if line.starts_with("addrelay") {
-            relays.push(get_value(line));
+            relays.push(url::Url::parse(&get_value(line)).unwrap());
         } else if line.starts_with("max_follows") {
             max_follows = get_value(line).parse::<usize>().expect("Can't parse value");
         } else if line.starts_with('#') || line.is_empty() {

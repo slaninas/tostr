@@ -23,3 +23,5 @@ tokio-socks = "0.5.1"
 tokio-tungstenite = {version = "0.17.1", features = ["native-tls"]}
 tungstenite = "0.17.2"
 url = "2.2.2"
+
+nostr-bot = { git = "https://github.com/slaninas/nostr-bot", rev = "7e2f5784663bbc53b0bdc0675c6fad774a187592" }

@@ -16,7 +16,10 @@ pub fn get_tweet_event(tweet: &Tweet) -> nostr::EventNonSigned {
     nostr::EventNonSigned {
         created_at: utils::unix_timestamp(),
         kind: 1,
-        tags: vec![vec!["tweet_timestamp".to_string(), format!("{}", tweet.timestamp)]],
+        tags: vec![vec![
+            "tweet_timestamp".to_string(),
+            format!("{}", tweet.timestamp),
+        ]],
         content: formatted,
     }
 }
