@@ -17,11 +17,6 @@ async fn main() {
         println!("Usage: {} --clearnet|--tor", args[0]);
         std::process::exit(1);
     }
-    let network = match args[1].as_str() {
-        "--clearnet" => nostr_bot::Network::Clearnet,
-        "--tor" => nostr_bot::Network::Tor,
-        _ => panic!("Incorrect network settings"),
-    };
 
     let config_path = std::path::PathBuf::from("config");
     let config = utils::parse_config(&config_path);
@@ -69,31 +64,37 @@ async fn main() {
         }
     };
 
-    let mut bot = nostr_bot::Bot::<State>::new(keypair, config.relays, network)
+    let mut bot = nostr_bot::Bot::<State>::new(keypair, config.relays, state)
         .name(&config.name)
         .about(&config.about)
         .picture(&config.picture_url)
         .intro_message(&config.hello_message)
         .command(
             nostr_bot::Command::new("!add", nostr_bot::wrap!(bot::handle_add))
-                .desc("Add new account to be followed by the bot."),
+                .description("Add new account to be followed by the bot."),
         )
         .command(
             nostr_bot::Command::new("!random", nostr_bot::wrap!(bot::handle_random))
-                .desc("Returns random account the bot is following."),
+                .description("Returns random account the bot is following."),
         )
         .command(
             nostr_bot::Command::new("!list", nostr_bot::wrap!(bot::handle_list))
-                .desc("Returns list of all accounts that the bot follows."),
+                .description("Returns list of all accounts that the bot follows."),
         )
         .command(
             nostr_bot::Command::new("!relays", nostr_bot::wrap_extra!(bot::handle_relays))
-                .desc("Show connected relay."),
+                .description("Show connected relay."),
         )
         .help()
         .sender(sender)
         .spawn(Box::pin(start_existing))
         .spawn(Box::pin(error_listener));
 
-    bot.run(state).await;
+    match args[1].as_str() {
+        "--clearnet" => {},
+        "--tor" => bot = bot.use_socks5(url::Url::parse("127.0.0.1:9050").unwrap()),
+        _ => panic!("Incorrect network settings"),
+    }
+
+    bot.run().await;
 }

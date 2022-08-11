@@ -91,7 +91,7 @@ pub async fn error_listener(
             }
             .sign(&keypair);
 
-            sender.lock().await.send(event.format()).await;
+            sender.lock().await.send(event).await;
         }
     }
 }
@@ -108,7 +108,7 @@ pub async fn handle_relays(
         write!(text, "{}\n", relay).unwrap();
     }
 
-    nostr_bot::format_reply(event, text)
+    nostr_bot::get_reply(event, text)
 }
 
 pub async fn handle_list(
@@ -147,7 +147,7 @@ pub async fn handle_random(
     let follows = state.lock().await.db.lock().unwrap().get_follows();
 
     if follows.is_empty() {
-        return nostr_bot::format_reply(
+        return nostr_bot::get_reply(
             event,
             String::from(
                 "Hi, there are no accounts. Try to add some using 'add twitter_username' command.",
@@ -199,12 +199,12 @@ pub async fn handle_add(
     }
 
     if db.lock().unwrap().follows_count() + 1 > config.max_follows {
-        return nostr_bot::format_reply(event,
+        return nostr_bot::get_reply(event,
             format!("Hi, sorry, couldn't add new account. I'm already running at my max capacity ({} users).", config.max_follows));
     }
 
     if !twitter::user_exists(&username).await {
-        return nostr_bot::format_reply(
+        return nostr_bot::get_reply(
             event,
             format!("Hi, I wasn't able to find {} on Twitter :(.", username),
         );
@@ -301,12 +301,12 @@ pub async fn update_user(
         0,
         vec![],
         format!(
-            r#"{{\"name\":\"tostr_{}\",\"about\":\"Tweets forwarded from https://twitter.com/{} by [tostr](https://github.com/slaninas/tostr) bot.\",\"picture\":\"{}\"}}"#,
+            r#"{{"name":"tostr_{}","about":"Tweets forwarded from https://twitter.com/{} by [tostr](https://github.com/slaninas/tostr) bot.","picture":"{}"}}"#,
             username, username, pic_url
         ),
     );
 
-    sender.lock().await.send(event.format()).await;
+    sender.lock().await.send(event).await;
 
     let mut since: chrono::DateTime<chrono::offset::Local> = std::time::SystemTime::now().into();
 
@@ -332,7 +332,7 @@ pub async fn update_user(
                     sender
                         .lock()
                         .await
-                        .send(twitter::get_tweet_event(tweet).sign(keypair).format())
+                        .send(twitter::get_tweet_event(tweet).sign(keypair))
                         .await;
                 }
 

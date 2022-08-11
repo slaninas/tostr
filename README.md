@@ -4,12 +4,9 @@
 **T**witter to n**ostr**.
 Bot that forwards tweets to [nostr](https://github.com/nostr-protocol/nostr).
 
-You can interact with it using 'add twitter_username' or 'random' commands.
+Reply to its message with `!help` and it will show you all available commands.
 
-
-## How it works
-It uses [twint](https://github.com/minamotorin/twint.git) to get the tweets, making nostr events from them which are signed using
-[secp256k1](https://crates.io/crates/secp256k1) and communicates with relays using [tokio_tungstenite](https://crates.io/crates/tokio-tungstenite).
+Powered by [nostr-bot](https://github.com/slaninas/nostr-bot.git) and [twint](https://github.com/minamotorin/twint.git).
 
 ## How to run
 ```
@@ -19,12 +16,6 @@ git clone https://github.com/slaninas/tostr/ && cd tostr
 ```
 Now the bot should be running and waiting for mentions. Just reply to its message to interact, see [Commands](#Commands).
 It relays only new tweets that were posted after you launched it.
-
-## Commands
-- `add twitter_username`: Adds new account and returns pubkey. If account is already added, returns existing pubkey.
-- `random`: Returns pubkey for a random account the bot follows.
-- `list`: Shows list of all followed accounts.
-- `relays`: Responds with list of relays the bot is currently connected to.
 
 ## Tor
 In case `--tor` is used connections to both relay and Twitter *should* be going through tor. But if you need full anonymity please **check yourself there are no leaks**.

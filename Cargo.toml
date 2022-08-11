@@ -24,4 +24,4 @@ tokio-tungstenite = {version = "0.17.1", features = ["native-tls"]}
 tungstenite = "0.17.2"
 url = "2.2.2"
 
-nostr-bot = { git = "https://github.com/slaninas/nostr-bot", rev = "d82848f514b293d7eb682a942a90095e8fe0fef9" }
+nostr-bot = { git = "https://github.com/slaninas/nostr-bot", rev = "24fc7b52edaf8c0c16fe916fffb8ab1c6a988f92" }
