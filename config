@@ -5,11 +5,11 @@ secret=
 
 # Main bot profile info
 name=tostr_bot
-about="Hi, I'm [tostr](https://github.com/slaninas/tostr) bot. Reply to me with 'add twitter_username', 'list', 'random' or 'relays'"
+about="Hi, I'm [tostr](https://github.com/slaninas/tostr) bot. Reply to me with '!help' to see available commands."
 picture_url=https://st2.depositphotos.com/1187563/7129/i/450/depositphotos_71295829-stock-photo-old-style-photo-toast-popping.jpg
 
 # Message bot will send when starting
-hello_message="Hi, I'm [tostr](https://github.com/slaninas/tostr/) bot. Reply to me with 'add twitter_username', 'list', 'random' or 'relays'."
+hello_message="Hi, I'm [tostr](https://github.com/slaninas/tostr/) bot. Reply to me with '!help' to see available commands."
 
 # Fow how many seconds to wait after last twitter account was checked
 refresh_interval_secs=600
