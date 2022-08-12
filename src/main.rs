@@ -64,7 +64,9 @@ async fn main() {
         }
     };
 
-    let mut bot = nostr_bot::Bot::<State>::new(keypair, config.relays, state)
+    let relays = config.relays.iter().map(|r| r.as_str()).collect::<Vec<_>>();
+
+    let mut bot = nostr_bot::Bot::<State>::new(keypair, relays, state)
         .name(&config.name)
         .about(&config.about)
         .picture(&config.picture_url)
@@ -92,7 +94,7 @@ async fn main() {
 
     match args[1].as_str() {
         "--clearnet" => {},
-        "--tor" => bot = bot.use_socks5(url::Url::parse("127.0.0.1:9050").unwrap()),
+        "--tor" => bot = bot.use_socks5("127.0.0.1:9050"),
         _ => panic!("Incorrect network settings"),
     }
 
