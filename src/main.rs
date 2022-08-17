@@ -22,9 +22,7 @@ async fn main() {
     let config = utils::parse_config(&config_path);
     debug!("{:?}", config);
 
-    let secp = secp256k1::Secp256k1::new();
-    let keypair = secp256k1::KeyPair::from_seckey_str(&secp, &config.secret).unwrap();
-
+    let keypair = nostr_bot::keypair_from_secret(&config.secret);
     let sender = nostr_bot::new_sender();
 
     let (tx, rx) = tokio::sync::mpsc::channel::<tostr::ConnectionMessage>(64);
@@ -41,14 +39,7 @@ async fn main() {
     let start_existing = {
         let state = state.clone();
         async move {
-            let state = state.lock().await;
-            tostr::start_existing(
-                state.db.clone(),
-                &state.config,
-                state.sender.clone(),
-                state.error_sender.clone(),
-            )
-            .await;
+            tostr::start_existing(state).await;
         }
     };
 

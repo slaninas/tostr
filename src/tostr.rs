@@ -257,24 +257,22 @@ fn get_handle_response(event: nostr_bot::Event, new_bot_pubkey: &str) -> nostr_b
     }
 }
 
-pub async fn start_existing(
-    db: simpledb::Database,
-    config: &utils::Config,
-    sender: nostr_bot::Sender,
-    tx: ErrorSender,
-) {
-    for (username, keypair) in db.lock().unwrap().get_follows() {
-        let tx = tx.clone();
+pub async fn start_existing(state: State) {
+    let state = state.lock().await;
+    for (username, keypair) in state.db.lock().unwrap().get_follows() {
+        let error_sender = state.error_sender.clone();
         info!("Starting worker for username {}", username);
 
         {
-            let refresh = config.refresh_interval_secs;
-            let sender = sender.clone();
+            let refresh = state.config.refresh_interval_secs;
+            let sender = state.sender.clone();
             tokio::spawn(async move {
-                update_user(username, &keypair, sender, tx, refresh).await;
+                update_user(username, &keypair, sender, error_sender, refresh).await;
             });
         }
     }
+
+    info!("Done starting tasks for followed accounts.");
 }
 
 #[allow(dead_code)]
