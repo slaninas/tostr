@@ -1,12 +1,12 @@
 use log::{debug, info};
 use nostr_bot::FunctorType;
 
-mod bot;
+mod tostr;
 mod simpledb;
 mod twitter;
 mod utils;
 
-use bot::MyState;
+use tostr::MyState;
 
 #[tokio::main]
 async fn main() {
@@ -29,7 +29,7 @@ async fn main() {
 
     let sender = nostr_bot::new_sender();
 
-    let (tx, rx) = tokio::sync::mpsc::channel::<bot::ConnectionMessage>(64);
+    let (tx, rx) = tokio::sync::mpsc::channel::<tostr::ConnectionMessage>(64);
     type State = nostr_bot::State<MyState>;
     let state = nostr_bot::wrap_state(MyState {
         config: config.clone(),
@@ -45,7 +45,7 @@ async fn main() {
 
         async move {
             let state = state.lock().await;
-            bot::start_existing(
+            tostr::start_existing(
                 state.db.clone(),
                 &state.config,
                 state.sender.clone(),
@@ -60,7 +60,7 @@ async fn main() {
         let sender = state.lock().await.sender.clone();
 
         async move {
-            bot::error_listener(rx, sender, keypair).await;
+            tostr::error_listener(rx, sender, keypair).await;
         }
     };
 
@@ -72,19 +72,19 @@ async fn main() {
         .picture(&config.picture_url)
         .intro_message(&config.hello_message)
         .command(
-            nostr_bot::Command::new("!add", nostr_bot::wrap!(bot::handle_add))
+            nostr_bot::Command::new("!add", nostr_bot::wrap!(tostr::handle_add))
                 .description("Add new account to be followed by the bot."),
         )
         .command(
-            nostr_bot::Command::new("!random", nostr_bot::wrap!(bot::handle_random))
+            nostr_bot::Command::new("!random", nostr_bot::wrap!(tostr::handle_random))
                 .description("Returns random account the bot is following."),
         )
         .command(
-            nostr_bot::Command::new("!list", nostr_bot::wrap!(bot::handle_list))
+            nostr_bot::Command::new("!list", nostr_bot::wrap!(tostr::handle_list))
                 .description("Returns list of all accounts that the bot follows."),
         )
         .command(
-            nostr_bot::Command::new("!relays", nostr_bot::wrap_extra!(bot::handle_relays))
+            nostr_bot::Command::new("!relays", nostr_bot::wrap_extra!(tostr::handle_relays))
                 .description("Show connected relay."),
         )
         .help()
