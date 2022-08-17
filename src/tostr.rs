@@ -107,16 +107,13 @@ pub async fn handle_relays(
 
     let relays = bot.connected_relays().await;
     for relay in relays {
-        write!(text, "{}\n", relay).unwrap();
+        writeln!(text, "{}", relay).unwrap();
     }
 
     nostr_bot::get_reply(event, text)
 }
 
-pub async fn handle_list(
-    event: nostr_bot::Event,
-    state: State,
-) -> nostr_bot::EventNonSigned {
+pub async fn handle_list(event: nostr_bot::Event, state: State) -> nostr_bot::EventNonSigned {
     let follows = state.lock().await.db.lock().unwrap().get_follows();
     let mut usernames = follows.keys().collect::<Vec<_>>();
     usernames.sort();
@@ -131,7 +128,7 @@ pub async fn handle_list(
             "p".to_string(),
             secret.x_only_public_key().0.to_string(),
         ]);
-        write!(text, "#[{}]\n", index + orig_tags_count).unwrap();
+        writeln!(text, "#[{}]", index + orig_tags_count).unwrap();
     }
 
     nostr_bot::EventNonSigned {
@@ -142,10 +139,7 @@ pub async fn handle_list(
     }
 }
 
-pub async fn handle_random(
-    event: nostr_bot::Event,
-    state: State,
-) -> nostr_bot::EventNonSigned {
+pub async fn handle_random(event: nostr_bot::Event, state: State) -> nostr_bot::EventNonSigned {
     let follows = state.lock().await.db.lock().unwrap().get_follows();
 
     if follows.is_empty() {
@@ -179,10 +173,7 @@ pub async fn handle_random(
     }
 }
 
-pub async fn handle_add(
-    event: nostr_bot::Event,
-    state: State,
-) -> nostr_bot::EventNonSigned {
+pub async fn handle_add(event: nostr_bot::Event, state: State) -> nostr_bot::EventNonSigned {
     let username = event.content[5..event.content.len()]
         .to_ascii_lowercase()
         .replace('@', "");
@@ -238,7 +229,6 @@ pub async fn handle_add(
 }
 
 fn get_handle_response(event: nostr_bot::Event, new_bot_pubkey: &str) -> nostr_bot::EventNonSigned {
-
     let mut all_tags = nostr_bot::tags_for_reply(event);
     all_tags.push(vec!["p".to_string(), new_bot_pubkey.to_string()]);
     let last_tag_position = all_tags.len() - 1;

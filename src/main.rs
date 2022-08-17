@@ -1,25 +1,12 @@
-use log::{debug, info};
+use log::debug;
 use nostr_bot::FunctorType;
 
-mod tostr;
 mod simpledb;
+mod tostr;
 mod twitter;
 mod utils;
 
 use tostr::State;
-
-fn start_existing(state: State) -> impl std::future::Future<Output = ()> {
-        async move {
-            let state = state.lock().await;
-            tostr::start_existing(
-                state.db.clone(),
-                &state.config,
-                state.sender.clone(),
-                state.error_sender.clone(),
-            )
-            .await;
-        }
-}
 
 #[tokio::main]
 async fn main() {
@@ -34,8 +21,6 @@ async fn main() {
     let config_path = std::path::PathBuf::from("config");
     let config = utils::parse_config(&config_path);
     debug!("{:?}", config);
-
-    info!("Starting bot");
 
     let secp = secp256k1::Secp256k1::new();
     let keypair = secp256k1::KeyPair::from_seckey_str(&secp, &config.secret).unwrap();
@@ -52,12 +37,23 @@ async fn main() {
         error_sender: tx.clone(),
     });
 
-    let start_existing_future = start_existing(state.clone());
+    let start_existing = {
+        let state = state.clone();
+        async move {
+            let state = state.lock().await;
+            tostr::start_existing(
+                state.db.clone(),
+                &state.config,
+                state.sender.clone(),
+                state.error_sender.clone(),
+            )
+            .await;
+        }
+    };
 
     let error_listener = {
         let state = state.clone();
         let sender = state.lock().await.sender.clone();
-
         async move {
             tostr::error_listener(rx, sender, keypair).await;
         }
@@ -88,11 +84,11 @@ async fn main() {
         )
         .help()
         .sender(sender)
-        .spawn(Box::pin(start_existing_future))
+        .spawn(Box::pin(start_existing))
         .spawn(Box::pin(error_listener));
 
     match args[1].as_str() {
-        "--clearnet" => {},
+        "--clearnet" => {}
         "--tor" => bot = bot.use_socks5("127.0.0.1:9050"),
         _ => panic!("Incorrect network settings"),
     }
