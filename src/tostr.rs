@@ -22,7 +22,7 @@ pub struct ConnectionMessage {
     timestamp: std::time::SystemTime,
 }
 
-pub struct MyState {
+pub struct TostrState {
     pub config: utils::Config,
     pub db: simpledb::Database,
     pub sender: nostr_bot::Sender,
@@ -30,6 +30,8 @@ pub struct MyState {
     // error_receiver: tokio::sync::mpsc::Receiver<bot::ConnectionMessage>,
     pub error_sender: tokio::sync::mpsc::Sender<ConnectionMessage>,
 }
+
+pub type State = nostr_bot::State<TostrState>;
 
 pub async fn error_listener(
     mut rx: Receiver,
@@ -98,7 +100,7 @@ pub async fn error_listener(
 
 pub async fn handle_relays(
     event: nostr_bot::Event,
-    _state: nostr_bot::State<crate::MyState>,
+    _state: State,
     bot: nostr_bot::BotInfo,
 ) -> nostr_bot::EventNonSigned {
     let mut text = "Right now I'm connected to these relays:\n".to_string();
@@ -113,7 +115,7 @@ pub async fn handle_relays(
 
 pub async fn handle_list(
     event: nostr_bot::Event,
-    state: nostr_bot::State<crate::MyState>,
+    state: State,
 ) -> nostr_bot::EventNonSigned {
     let follows = state.lock().await.db.lock().unwrap().get_follows();
     let mut usernames = follows.keys().collect::<Vec<_>>();
@@ -142,7 +144,7 @@ pub async fn handle_list(
 
 pub async fn handle_random(
     event: nostr_bot::Event,
-    state: nostr_bot::State<crate::MyState>,
+    state: State,
 ) -> nostr_bot::EventNonSigned {
     let follows = state.lock().await.db.lock().unwrap().get_follows();
 
@@ -179,7 +181,7 @@ pub async fn handle_random(
 
 pub async fn handle_add(
     event: nostr_bot::Event,
-    state: nostr_bot::State<crate::MyState>,
+    state: State,
 ) -> nostr_bot::EventNonSigned {
     let username = event.content[5..event.content.len()]
         .to_ascii_lowercase()

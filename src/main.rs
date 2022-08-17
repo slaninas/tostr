@@ -6,7 +6,20 @@ mod simpledb;
 mod twitter;
 mod utils;
 
-use tostr::MyState;
+use tostr::State;
+
+fn start_existing(state: State) -> impl std::future::Future<Output = ()> {
+        async move {
+            let state = state.lock().await;
+            tostr::start_existing(
+                state.db.clone(),
+                &state.config,
+                state.sender.clone(),
+                state.error_sender.clone(),
+            )
+            .await;
+        }
+}
 
 #[tokio::main]
 async fn main() {
@@ -30,8 +43,7 @@ async fn main() {
     let sender = nostr_bot::new_sender();
 
     let (tx, rx) = tokio::sync::mpsc::channel::<tostr::ConnectionMessage>(64);
-    type State = nostr_bot::State<MyState>;
-    let state = nostr_bot::wrap_state(MyState {
+    let state = nostr_bot::wrap_state(tostr::TostrState {
         config: config.clone(),
         sender: sender.clone(),
         db: std::sync::Arc::new(std::sync::Mutex::new(simpledb::SimpleDatabase::from_file(
@@ -40,20 +52,7 @@ async fn main() {
         error_sender: tx.clone(),
     });
 
-    let start_existing = {
-        let state = state.clone();
-
-        async move {
-            let state = state.lock().await;
-            tostr::start_existing(
-                state.db.clone(),
-                &state.config,
-                state.sender.clone(),
-                state.error_sender.clone(),
-            )
-            .await;
-        }
-    };
+    let start_existing_future = start_existing(state.clone());
 
     let error_listener = {
         let state = state.clone();
@@ -89,7 +88,7 @@ async fn main() {
         )
         .help()
         .sender(sender)
-        .spawn(Box::pin(start_existing))
+        .spawn(Box::pin(start_existing_future))
         .spawn(Box::pin(error_listener));
 
     match args[1].as_str() {
