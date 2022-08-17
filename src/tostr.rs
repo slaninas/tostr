@@ -29,6 +29,8 @@ pub struct TostrState {
 
     // error_receiver: tokio::sync::mpsc::Receiver<bot::ConnectionMessage>,
     pub error_sender: tokio::sync::mpsc::Sender<ConnectionMessage>,
+
+    pub started_timestamp: u64,
 }
 
 pub type State = nostr_bot::State<TostrState>;
@@ -226,6 +228,17 @@ pub async fn handle_add(event: nostr_bot::Event, state: State) -> nostr_bot::Eve
     }
 
     get_handle_response(event, &xonly_pubkey.to_string())
+}
+
+pub async fn uptime(event: nostr_bot::Event, state: State) -> nostr_bot::EventNonSigned {
+    let uptime_seconds = nostr_bot::unix_timestamp() - state.lock().await.started_timestamp;
+    nostr_bot::get_reply(
+        event,
+        format!(
+            "Running for {}.",
+            compound_duration::format_dhms(uptime_seconds)
+        ),
+    )
 }
 
 fn get_handle_response(event: nostr_bot::Event, new_bot_pubkey: &str) -> nostr_bot::EventNonSigned {

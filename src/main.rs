@@ -35,6 +35,7 @@ async fn main() {
             "data/users".to_string(),
         ))),
         error_sender: tx.clone(),
+        started_timestamp: nostr_bot::unix_timestamp(),
     });
 
     let start_existing = {
@@ -81,6 +82,10 @@ async fn main() {
         .command(
             nostr_bot::Command::new("!relays", nostr_bot::wrap_extra!(tostr::handle_relays))
                 .description("Show connected relay."),
+        )
+        .command(
+            nostr_bot::Command::new("!uptime", nostr_bot::wrap!(tostr::uptime))
+                .description("Prints for how long is the bot running."),
         )
         .help()
         .sender(sender)

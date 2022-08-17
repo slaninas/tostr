@@ -25,3 +25,4 @@ tokio-socks = "0.5.1"
 tokio-tungstenite = {version = "0.17.1", features = ["native-tls"]}
 tungstenite = "0.17.2"
 url = "2.2.2"
+compound_duration = "1.2.0"
