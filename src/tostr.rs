@@ -177,7 +177,7 @@ pub async fn handle_random(event: nostr_bot::Event, state: State) -> nostr_bot::
 
 pub async fn handle_add(event: nostr_bot::Event, state: State) -> nostr_bot::EventNonSigned {
     let words = event.content.split_whitespace().collect::<Vec<_>>();
-    if words.len() <= 2 {
+    if words.len() < 2 {
         debug!("Invalid !add command >{}< (missing username).", event.content);
         return nostr_bot::get_reply(event, "Error: Missing username.".to_string());
     }
