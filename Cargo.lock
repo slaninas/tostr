@@ -654,9 +654,9 @@ dependencies = [
 
 [[package]]
 name = "nostr-bot"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8684efc95fb4ee526f87dc1796fa06803d2f9e0bcb0c6fd1a9a1b9c3d48b0845"
+checksum = "f2c2c9ba32514f366592a3b884ca63fa4d7131f38511ccad2ae56fa594f81090"
 dependencies = [
  "env_logger",
  "futures-util",
