@@ -21,6 +21,7 @@ It relays only new tweets that were posted after you launched it.
 In case `--tor` is used connections to both relay and Twitter *should* be going through tor. But if you need full anonymity please **check yourself there are no leaks**.
 
 ## Known limitations/issues
+- Heavy CPU load when starting the bot that already follows lot of users
 - in `update_user` function, `since` value may not correspond to the previous `until` value (seems it breaks shortly after a new tweet is found), this may lead to tweets being forwarded twice or not at all
 - twint is a Twitter scraper that currently works but who knows for how long
 - Doesn't work for retweets by users you follow (twint has `--retweets` option but it's extremely slow 1.5 vs 30 s for some accounts)
