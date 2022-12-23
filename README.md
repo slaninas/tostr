@@ -8,10 +8,10 @@ Reply to its message with `!help` and it will show you all available commands.
 
 Powered by [nostr-bot](https://github.com/slaninas/nostr-bot.git) and [twint](https://github.com/minamotorin/twint.git).
 
-## How to run
+## How to run using Docker
 ```
 git clone https://github.com/slaninas/tostr/ && cd tostr
-# Add secret to config file, choose refresh interval, relays and set limit for number of accounts
+# Now add secret (hex private key) to config file, tune config if you wish to
 ./build_and_run.sh --clearnet|tor
 ```
 Now the bot should be running and waiting for mentions. Just reply to its message to interact, see [Commands](#Commands).
