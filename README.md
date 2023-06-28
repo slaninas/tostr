@@ -1,4 +1,4 @@
-# tostr
+# tostr -- Currently not working due to Twitter API changes
 /ˈtəʊstə(r)/
 
 **T**witter to n**ostr**.
