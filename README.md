@@ -1,4 +1,4 @@
-# tostr -- Currently not working due to Twitter API changes
+# tostr (doesn't work due to mandatory login policy)
 /ˈtəʊstə(r)/
 
 **T**witter to n**ostr**.
@@ -6,8 +6,7 @@ Bot that forwards tweets to [nostr](https://github.com/nostr-protocol/nostr).
 
 Reply to its message with `!help` and it will show you all available commands.
 
-Powered by [nostr-bot](https://github.com/slaninas/nostr-bot.git) and [twint](https://github.com/minamotorin/twint.git).
-
+Powered by [nostr-bot](https://github.com/slaninas/nostr-bot.git).
 ## How to run using Docker
 ```
 git clone https://github.com/slaninas/tostr/ && cd tostr
